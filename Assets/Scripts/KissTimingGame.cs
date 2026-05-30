@@ -46,7 +46,12 @@ public sealed class KissTimingGame : MonoBehaviour
     private readonly string[] cueFaces = { "< >", "<3 >", "<3 <3" };
 
     [Header("Timing")]
-    [SerializeField] private float[] cueTimingSeconds = { 0.65f, 0.65f, 0.65f };
+    [SerializeField] private Vector2[] cueTimingRanges =
+    {
+        new Vector2(0.45f, 0.95f),
+        new Vector2(0.45f, 0.95f),
+        new Vector2(0.45f, 0.95f)
+    };
 
     [Header("Production Sprites")]
     [SerializeField] private Sprite backgroundSprite;
@@ -78,6 +83,9 @@ public sealed class KissTimingGame : MonoBehaviour
     [Header("UI Style")]
     [SerializeField] private TMP_FontAsset uiFont;
     [SerializeField] private TMP_FontAsset scoreFont;
+    [SerializeField] private Color scoreTextColor = new Color(1f, 0.86f, 0.08f);
+    [SerializeField] private Color scoreOutlineColor = new Color(0.05f, 0.02f, 0.85f);
+    [SerializeField, Range(0f, 0.5f)] private float scoreOutlineWidth = 0.22f;
     [SerializeField] private Sprite titleButtonSprite;
     [SerializeField] private Sprite titleButtonHoverSprite;
     [SerializeField] private Sprite titleButtonPressedSprite;
@@ -87,7 +95,9 @@ public sealed class KissTimingGame : MonoBehaviour
 
     private Canvas canvas;
     private RectTransform stageRoot;
+    private RectTransform kissRoot;
     private RectTransform effectRoot;
+    private RectTransform uiRoot;
     private Image backgroundImage;
     private Image sharedCharacterImage;
     private Image leftCharacterImage;
@@ -126,6 +136,11 @@ public sealed class KissTimingGame : MonoBehaviour
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     private static void Bootstrap()
     {
+        if (SceneManager.GetActiveScene().name == "Title")
+        {
+            return;
+        }
+
         if (FindAnyObjectByType<KissTimingGame>() != null)
         {
             return;
@@ -233,12 +248,17 @@ public sealed class KissTimingGame : MonoBehaviour
 
     private float GetCueWaitSeconds(int stepIndex)
     {
-        if (cueTimingSeconds != null
+        if (cueTimingRanges != null
             && stepIndex >= 0
-            && stepIndex < cueTimingSeconds.Length
-            && cueTimingSeconds[stepIndex] > 0f)
+            && stepIndex < cueTimingRanges.Length)
         {
-            return cueTimingSeconds[stepIndex];
+            Vector2 range = cueTimingRanges[stepIndex];
+            float min = Mathf.Max(0f, Mathf.Min(range.x, range.y));
+            float max = Mathf.Max(min, Mathf.Max(range.x, range.y));
+            if (max > 0f)
+            {
+                return min == max ? min : Random.Range(min, max);
+            }
         }
 
         return Random.Range(0.45f, 0.95f);
@@ -378,7 +398,7 @@ public sealed class KissTimingGame : MonoBehaviour
         titleText.text = "";
         phaseText.text = "";
         judgeText.text = GetResultHeadline();
-        judgeText.color = GetUiBlue();
+        ApplyBlueResultTextStyle(judgeText);
         scoreText.text = "0 PTS";
         breakdownText.text = BuildResultBreakdown();
         promptText.text = "";
@@ -725,7 +745,7 @@ public sealed class KissTimingGame : MonoBehaviour
 
     private void SpawnFloatingText(string value)
     {
-        TMP_Text text = CreateText("FloatScore", effectRoot, value, 38, FontStyles.Bold, TextAlignmentOptions.Center);
+        TMP_Text text = CreateText("FloatScore", uiRoot, value, 38, FontStyles.Bold, TextAlignmentOptions.Center);
         ApplyFont(text, scoreFont);
         text.color = GetFloatingScoreColor();
         RectTransform rect = text.rectTransform;
@@ -906,9 +926,14 @@ public sealed class KissTimingGame : MonoBehaviour
             floatingScoreRoutine = null;
         }
 
-        for (int i = effectRoot.childCount - 1; i >= 0; i--)
+        if (uiRoot == null)
         {
-            Transform child = effectRoot.GetChild(i);
+            return;
+        }
+
+        for (int i = uiRoot.childCount - 1; i >= 0; i--)
+        {
+            Transform child = uiRoot.GetChild(i);
             if (child.name.StartsWith("FloatScore"))
             {
                 Destroy(child.gameObject);
@@ -1102,6 +1127,20 @@ public sealed class KissTimingGame : MonoBehaviour
         return new Color(0.05f, 0.02f, 0.85f);
     }
 
+    private static void ApplyBlueResultTextStyle(TMP_Text text)
+    {
+        text.color = GetUiBlue();
+        text.outlineColor = new Color(1f, 0.86f, 0.08f);
+        text.outlineWidth = 0.14f;
+    }
+
+    private void ApplyScoreTextStyle(TMP_Text text)
+    {
+        text.color = scoreTextColor;
+        text.outlineColor = scoreOutlineColor;
+        text.outlineWidth = scoreOutlineWidth;
+    }
+
     private static bool WasSubmitPressed()
     {
         Keyboard keyboard = Keyboard.current;
@@ -1128,8 +1167,12 @@ public sealed class KissTimingGame : MonoBehaviour
 
         stageRoot = CreateRect("Stage", cameraRig);
         Stretch(stageRoot);
+        kissRoot = CreateRect("KissLayer", canvas.transform);
+        Stretch(kissRoot);
         effectRoot = CreateRect("Effects", canvas.transform);
         Stretch(effectRoot);
+        uiRoot = CreateRect("UiLayer", canvas.transform);
+        Stretch(uiRoot);
 
         backgroundImage = CreateImage("Background", stageRoot, new Color(0.22f, 0.02f, 0.78f));
         Stretch(backgroundImage.rectTransform);
@@ -1177,53 +1220,54 @@ public sealed class KissTimingGame : MonoBehaviour
         rightFace.rectTransform.offsetMin = Vector2.zero;
         rightFace.rectTransform.offsetMax = Vector2.zero;
 
-        titleText = CreateText("TitleText", effectRoot, "", 96, FontStyles.Bold, TextAlignmentOptions.Center);
+        titleText = CreateText("TitleText", uiRoot, "", 96, FontStyles.Bold, TextAlignmentOptions.Center);
         ApplyFont(titleText, uiFont);
         titleText.rectTransform.anchoredPosition = new Vector2(0f, 245f);
         titleText.rectTransform.sizeDelta = new Vector2(1000f, 160f);
 
-        phaseText = CreateText("PhaseText", effectRoot, "", 58, FontStyles.Bold, TextAlignmentOptions.Center);
+        phaseText = CreateText("PhaseText", uiRoot, "", 58, FontStyles.Bold, TextAlignmentOptions.Center);
         ApplyFont(phaseText, uiFont);
         phaseText.rectTransform.anchoredPosition = new Vector2(0f, 370f);
         phaseText.rectTransform.sizeDelta = new Vector2(850f, 100f);
 
-        cueText = CreateText("CueText", effectRoot, "", 210, FontStyles.Bold, TextAlignmentOptions.Center);
+        cueText = CreateText("CueText", uiRoot, "", 210, FontStyles.Bold, TextAlignmentOptions.Center);
         ApplyFont(cueText, uiFont);
         cueText.color = new Color(1f, 0.95f, 0.2f);
         cueText.rectTransform.anchoredPosition = new Vector2(0f, 80f);
         cueText.rectTransform.sizeDelta = new Vector2(260f, 260f);
 
-        cueMarkImage = CreateImage("CueMarkImage", effectRoot, Color.white);
+        cueMarkImage = CreateImage("CueMarkImage", uiRoot, Color.white);
         cueMarkImage.rectTransform.anchoredPosition = new Vector2(0f, 105f);
         cueMarkImage.rectTransform.sizeDelta = cueMarkSize;
         ApplySprite(cueMarkImage, cueMarkSprite, true);
         cueMarkImage.gameObject.SetActive(false);
 
-        judgeText = CreateText("JudgeText", effectRoot, "", 78, FontStyles.Bold, TextAlignmentOptions.Center);
+        judgeText = CreateText("JudgeText", uiRoot, "", 78, FontStyles.Bold, TextAlignmentOptions.Center);
         ApplyFont(judgeText, uiFont);
+        ApplyBlueResultTextStyle(judgeText);
         judgeText.rectTransform.anchoredPosition = new Vector2(0f, -295f);
         judgeText.rectTransform.sizeDelta = new Vector2(1100f, 120f);
 
-        scoreText = CreateText("ScoreText", effectRoot, "", 86, FontStyles.Bold, TextAlignmentOptions.Center);
+        scoreText = CreateText("ScoreText", uiRoot, "", 86, FontStyles.Bold, TextAlignmentOptions.Center);
         ApplyFont(scoreText, scoreFont != null ? scoreFont : uiFont);
-        scoreText.color = GetUiBlue();
+        ApplyScoreTextStyle(scoreText);
         scoreText.rectTransform.anchoredPosition = new Vector2(0f, 35f);
         scoreText.rectTransform.sizeDelta = new Vector2(1300f, 140f);
 
-        breakdownText = CreateText("BreakdownText", effectRoot, "", 32, FontStyles.Bold, TextAlignmentOptions.Center);
+        breakdownText = CreateText("BreakdownText", uiRoot, "", 32, FontStyles.Bold, TextAlignmentOptions.Center);
         ApplyFont(breakdownText, uiFont);
-        breakdownText.color = GetUiBlue();
+        ApplyBlueResultTextStyle(breakdownText);
         breakdownText.rectTransform.anchoredPosition = new Vector2(0f, -112f);
         breakdownText.rectTransform.sizeDelta = new Vector2(1200f, 220f);
 
-        promptText = CreateText("PromptText", effectRoot, "", 44, FontStyles.Bold, TextAlignmentOptions.Center);
+        promptText = CreateText("PromptText", uiRoot, "", 44, FontStyles.Bold, TextAlignmentOptions.Center);
         ApplyFont(promptText, uiFont);
         promptText.rectTransform.anchorMin = new Vector2(0.5f, 0f);
         promptText.rectTransform.anchorMax = new Vector2(0.5f, 0f);
         promptText.rectTransform.anchoredPosition = new Vector2(0f, 82f);
         promptText.rectTransform.sizeDelta = new Vector2(650f, 90f);
 
-        resultButtonRoot = CreateRect("ResultButtons", effectRoot);
+        resultButtonRoot = CreateRect("ResultButtons", uiRoot);
         resultButtonRoot.anchorMin = new Vector2(0.5f, 0f);
         resultButtonRoot.anchorMax = new Vector2(0.5f, 0f);
         resultButtonRoot.anchoredPosition = new Vector2(0f, 96f);
@@ -1261,7 +1305,7 @@ public sealed class KissTimingGame : MonoBehaviour
         Stretch(flashImage.rectTransform);
         flashImage.gameObject.SetActive(false);
 
-        kissCutImage = CreateImage("KissCut", effectRoot, new Color(1f, 0.35f, 0.65f, 0.8f));
+        kissCutImage = CreateImage("KissCut", kissRoot, new Color(1f, 0.35f, 0.65f, 0.8f));
         Stretch(kissCutImage.rectTransform);
         ApplySprite(kissCutImage, kissCutSprite, false);
         kissCutImage.gameObject.SetActive(false);
@@ -1270,6 +1314,11 @@ public sealed class KissTimingGame : MonoBehaviour
         explosionImage.rectTransform.sizeDelta = new Vector2(900f, 900f);
         ApplySprite(explosionImage, explosionSprite, true);
         explosionImage.gameObject.SetActive(false);
+
+        stageRoot.SetSiblingIndex(0);
+        kissRoot.SetSiblingIndex(1);
+        effectRoot.SetSiblingIndex(2);
+        uiRoot.SetAsLastSibling();
     }
 
     private Image CreateSpeedLines()

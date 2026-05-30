@@ -369,10 +369,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1d18c7c6dbb2498dbf1c82e4f1d4729d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  cueTimingSeconds:
-  - 0.65
-  - 0.65
-  - 0.65
+  cueTimingRanges:
+  - {x: 1, y: 3}
+  - {x: 2, y: 4}
+  - {x: 3, y: 5}
   backgroundSprite: {fileID: 0}
   characterLoopSprites:
   - {fileID: 21300000, guid: 0d304bb3036221741be828261827de57, type: 3}
@@ -429,6 +429,9 @@ MonoBehaviour:
   titleSceneName: Title
   uiFont: {fileID: 11400000, guid: 79f28db01604b6142b2b2ea733fe9475, type: 2}
   scoreFont: {fileID: 11400000, guid: 79f28db01604b6142b2b2ea733fe9475, type: 2}
+  scoreTextColor: {r: 1, g: 0.86, b: 0.08, a: 1}
+  scoreOutlineColor: {r: 0.05, g: 0.02, b: 0.85, a: 1}
+  scoreOutlineWidth: 0.22
   titleButtonSprite: {fileID: -4005234435270106859, guid: d6ccf8db27f9eb64686efda90c433607, type: 3}
   titleButtonHoverSprite: {fileID: 6169879753116803640, guid: 5d7ae6bd4b40767458045d206911236b, type: 3}
   titleButtonPressedSprite: {fileID: 8207237791915964684, guid: 1e0bd3cac7227f34fa8d59b46a08e26d, type: 3}
