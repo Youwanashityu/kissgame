@@ -1,10 +1,16 @@
 using System.Collections;
 using System.Collections.Generic;
+using System;
+using System.Reflection;
 using TMPro;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.InputSystem.UI;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
+using Random = UnityEngine.Random;
 
+#pragma warning disable 0649
 public sealed class KissTimingGame : MonoBehaviour
 {
     private enum JudgeResult
@@ -21,6 +27,13 @@ public sealed class KissTimingGame : MonoBehaviour
         public float ErrorSeconds;
     }
 
+    private enum UnityroomScoreWriteMode
+    {
+        HighScoreDesc,
+        HighScoreAsc,
+        Always
+    }
+
     private const int StepCount = 3;
     private const float PerfectWindow = 0.08f;
     private const float GoodWindow = 0.25f;
@@ -32,9 +45,53 @@ public sealed class KissTimingGame : MonoBehaviour
     private readonly string[] waitFaces = { ". .", "///", "..." };
     private readonly string[] cueFaces = { "< >", "<3 >", "<3 <3" };
 
+    [Header("Timing")]
+    [SerializeField] private float[] cueTimingSeconds = { 0.65f, 0.65f, 0.65f };
+
+    [Header("Production Sprites")]
+    [SerializeField] private Sprite backgroundSprite;
+    [SerializeField] private Sprite[] characterLoopSprites;
+    [SerializeField] private Sprite[] perfectCharacterLoopSprites;
+    [SerializeField] private Sprite[] flyingCharacterLoopSprites;
+    [SerializeField] private Sprite[] missCharacterLoopSprites;
+    [SerializeField] private float characterLoopFps = 6f;
+    [SerializeField] private bool syncCharacterLoopToBpm = true;
+    [SerializeField] private float musicBpm = 200f;
+    [SerializeField] private float beatsPerCharacterLoop = 2f;
+    [SerializeField] private Sprite cueMarkSprite;
+    [SerializeField] private Vector2 cueMarkSize = new Vector2(220f, 220f);
+    [SerializeField] private Sprite speedLineSprite;
+    [SerializeField] private Sprite perfectEffectSprite;
+    [SerializeField] private Sprite kissCutSprite;
+    [SerializeField] private Sprite[] kissSuccessSprites;
+    [SerializeField] private float kissSuccessFps = 12f;
+    [SerializeField] private Sprite explosionSprite;
+
+    [Header("unityroom Ranking")]
+    [SerializeField] private bool submitScoreToUnityroom;
+    [SerializeField] private int unityroomScoreboardNo = 1;
+    [SerializeField] private UnityroomScoreWriteMode unityroomScoreWriteMode = UnityroomScoreWriteMode.HighScoreDesc;
+
+    [Header("Scene Flow")]
+    [SerializeField] private string titleSceneName = "Title";
+
+    [Header("UI Style")]
+    [SerializeField] private TMP_FontAsset uiFont;
+    [SerializeField] private TMP_FontAsset scoreFont;
+    [SerializeField] private Sprite titleButtonSprite;
+    [SerializeField] private Sprite titleButtonHoverSprite;
+    [SerializeField] private Sprite titleButtonPressedSprite;
+    [SerializeField] private Sprite retryButtonSprite;
+    [SerializeField] private Sprite retryButtonHoverSprite;
+    [SerializeField] private Sprite retryButtonPressedSprite;
+
     private Canvas canvas;
     private RectTransform stageRoot;
     private RectTransform effectRoot;
+    private Image backgroundImage;
+    private Image sharedCharacterImage;
+    private Image leftCharacterImage;
+    private Image rightCharacterImage;
     private TMP_Text titleText;
     private TMP_Text phaseText;
     private TMP_Text cueText;
@@ -44,14 +101,18 @@ public sealed class KissTimingGame : MonoBehaviour
     private TMP_Text promptText;
     private TMP_Text leftFace;
     private TMP_Text rightFace;
+    private RectTransform resultButtonRoot;
+    private Image cueMarkImage;
     private Image flashImage;
     private Image speedLineImage;
+    private Image perfectEffectImage;
     private Image kissCutImage;
     private Image explosionImage;
     private RectTransform cameraRig;
     private Vector2 cameraRigBasePosition;
     private Vector3 cameraRigBaseScale;
     private bool running;
+    private bool showingResult;
     private bool waitingForInput;
     private bool cueShown;
     private float cueShownAt;
@@ -59,6 +120,8 @@ public sealed class KissTimingGame : MonoBehaviour
     private Coroutine shakeRoutine;
     private Coroutine scoreRoutine;
     private Coroutine floatingScoreRoutine;
+    private Coroutine characterLoopRoutine;
+    private Sprite[] activeCharacterLoopSprites;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     private static void Bootstrap()
@@ -75,6 +138,7 @@ public sealed class KissTimingGame : MonoBehaviour
     private void Awake()
     {
         Application.targetFrameRate = 60;
+        EnsureEventSystem();
         BuildUi();
         ShowTitle();
     }
@@ -83,7 +147,7 @@ public sealed class KissTimingGame : MonoBehaviour
     {
         if (WasSubmitPressed())
         {
-            if (!running)
+            if (!running && !showingResult)
             {
                 StartCoroutine(PlayGame());
                 return;
@@ -99,8 +163,10 @@ public sealed class KissTimingGame : MonoBehaviour
     private IEnumerator PlayGame()
     {
         running = true;
+        showingResult = false;
         results.Clear();
         ResetEffects();
+        SetResultButtonsVisible(false);
 
         titleText.text = "";
         scoreText.text = "";
@@ -109,7 +175,7 @@ public sealed class KissTimingGame : MonoBehaviour
         promptText.text = "";
         StopResultEffects();
         phaseText.text = "READY";
-        SetFace(". .", ". .");
+        SetIdleFace();
         yield return new WaitForSeconds(0.35f);
 
         for (currentStep = 0; currentStep < StepCount; currentStep++)
@@ -128,11 +194,12 @@ public sealed class KissTimingGame : MonoBehaviour
         cueShown = false;
         waitingForInput = true;
         cueText.text = "";
+        SetCueMarkVisible(false);
         judgeText.text = "";
         phaseText.text = $"{stepNames[stepIndex]}  {stepIndex + 1}/{StepCount}";
-        SetFace(waitFaces[stepIndex], waitFaces[stepIndex]);
+        SetWaitingFace(stepIndex);
 
-        float waitSeconds = Random.Range(0.45f, 0.95f);
+        float waitSeconds = GetCueWaitSeconds(stepIndex);
         float startAt = Time.time;
         while (Time.time - startAt < waitSeconds && waitingForInput)
         {
@@ -147,8 +214,9 @@ public sealed class KissTimingGame : MonoBehaviour
 
         cueShown = true;
         cueShownAt = Time.time;
-        cueText.text = "!";
-        SetFace(cueFaces[stepIndex], cueFaces[stepIndex]);
+        cueText.text = cueMarkSprite == null ? "!" : "";
+        SetCueMarkVisible(true);
+        SetCueFace(stepIndex);
         PlayCuePop(stepIndex);
 
         while (Time.time - cueShownAt < MissWindow && waitingForInput)
@@ -161,6 +229,19 @@ public sealed class KissTimingGame : MonoBehaviour
         {
             RegisterJudge(JudgeResult.Miss, MissWindow);
         }
+    }
+
+    private float GetCueWaitSeconds(int stepIndex)
+    {
+        if (cueTimingSeconds != null
+            && stepIndex >= 0
+            && stepIndex < cueTimingSeconds.Length
+            && cueTimingSeconds[stepIndex] > 0f)
+        {
+            return cueTimingSeconds[stepIndex];
+        }
+
+        return Random.Range(0.45f, 0.95f);
     }
 
     private void ResolveCurrentStep()
@@ -191,9 +272,23 @@ public sealed class KissTimingGame : MonoBehaviour
         waitingForInput = false;
         cueShown = false;
         cueText.text = "";
+        SetCueMarkVisible(false);
         results.Add(new StepResult { Judge = judge, ErrorSeconds = errorSeconds });
         judgeText.text = GetJudgeLabel(judge);
         judgeText.color = GetJudgeColor(judge);
+        if (judge == JudgeResult.Perfect)
+        {
+            SetCharacterLoop(perfectCharacterLoopSprites);
+        }
+        else if (judge == JudgeResult.Flying)
+        {
+            SetCharacterLoop(flyingCharacterLoopSprites);
+        }
+        else if (judge == JudgeResult.Miss)
+        {
+            SetCharacterLoop(missCharacterLoopSprites);
+        }
+
         PlayImpact(judge, currentStep);
     }
 
@@ -204,57 +299,138 @@ public sealed class KissTimingGame : MonoBehaviour
         phaseText.text = success ? "KISS!!" : "OH NO...";
         promptText.text = "";
         cueText.text = "";
+        SetCueMarkVisible(false);
 
         if (success)
         {
-            kissCutImage.gameObject.SetActive(true);
-            kissCutImage.color = new Color(1f, 0.35f, 0.65f, 0.8f);
-            yield return new WaitForSeconds(0.18f);
-            explosionImage.gameObject.SetActive(true);
-            explosionImage.color = finalJudge == JudgeResult.Perfect
-                ? new Color(1f, 0.95f, 0.15f, 0.9f)
-                : new Color(1f, 0.45f, 0.8f, 0.75f);
+            yield return PlayKissSuccessAnimation();
+            bool showsExplosion = explosionSprite != null;
+            explosionImage.gameObject.SetActive(showsExplosion);
+            explosionImage.color = GetExplosionColor(finalJudge);
             PlayImpact(finalJudge, 2);
             yield return new WaitForSeconds(0.28f);
             yield return FlashToWhite(finalJudge == JudgeResult.Perfect ? 0.95f : 0.5f);
         }
         else
         {
-            SetFace("x x", "x x");
+            SetMissFace();
             yield return new WaitForSeconds(0.45f);
         }
 
-        kissCutImage.gameObject.SetActive(false);
+        if (!HasAnySprite(kissSuccessSprites))
+        {
+            kissCutImage.gameObject.SetActive(false);
+        }
         explosionImage.gameObject.SetActive(false);
+    }
+
+    private IEnumerator PlayKissSuccessAnimation()
+    {
+        bool usesSuccessFrames = HasAnySprite(kissSuccessSprites);
+        kissCutImage.gameObject.SetActive(true);
+        kissCutImage.color = usesSuccessFrames ? Color.white : GetKissCutColor();
+        kissCutImage.preserveAspect = false;
+        Stretch(kissCutImage.rectTransform);
+
+        if (usesSuccessFrames)
+        {
+            kissCutImage.sprite = null;
+            float frameInterval = 1f / Mathf.Max(1f, kissSuccessFps);
+            for (int i = 0; i < kissSuccessSprites.Length; i++)
+            {
+                if (kissSuccessSprites[i] == null)
+                {
+                    continue;
+                }
+
+                kissCutImage.sprite = kissSuccessSprites[i];
+                kissCutImage.color = Color.white;
+                yield return new WaitForSeconds(frameInterval);
+            }
+
+            yield break;
+        }
+
+        yield return new WaitForSeconds(0.18f);
     }
 
     private void ShowTitle()
     {
         running = false;
+        showingResult = false;
         waitingForInput = false;
+        SetResultButtonsVisible(false);
         phaseText.text = "";
         cueText.text = "";
+        SetCueMarkVisible(false);
         judgeText.text = "";
         scoreText.text = "";
         breakdownText.text = "";
-        titleText.text = "KISS TIMING";
+        titleText.text = "";
         promptText.text = "SPACE / CLICK";
-        SetFace(". .", ". .");
+        SetIdleFace();
     }
 
     private void ShowResult()
     {
         long score = CalculateScore();
+        showingResult = true;
         titleText.text = "";
-        phaseText.text = "RESULT";
+        phaseText.text = "";
         judgeText.text = GetResultHeadline();
-        judgeText.color = GetJudgeColor(GetBestFinalJudge());
+        judgeText.color = GetUiBlue();
         scoreText.text = "0 PTS";
         breakdownText.text = BuildResultBreakdown();
-        promptText.text = "SPACE / CLICK RETRY";
-        SetFace("<3 <3", "<3 <3");
+        promptText.text = "";
+        SetResultFace();
+        SetResultButtonsVisible(true);
         scoreRoutine = StartCoroutine(CountUpScore(score));
         floatingScoreRoutine = StartCoroutine(SpawnScoreTexts(score));
+        SubmitUnityroomScore(score);
+    }
+
+    public void RetryGame()
+    {
+        if (running)
+        {
+            return;
+        }
+
+        StartCoroutine(PlayGame());
+    }
+
+    public void BackToTitle()
+    {
+        if (Application.CanStreamedLevelBeLoaded(titleSceneName))
+        {
+            SceneManager.LoadScene(titleSceneName);
+            return;
+        }
+
+        ShowTitle();
+    }
+
+    private void SetResultButtonsVisible(bool visible)
+    {
+        if (resultButtonRoot != null)
+        {
+            resultButtonRoot.gameObject.SetActive(visible);
+        }
+    }
+
+    private void SetCueMarkVisible(bool visible)
+    {
+        if (cueMarkImage == null || cueMarkSprite == null)
+        {
+            return;
+        }
+
+        cueMarkImage.gameObject.SetActive(visible);
+        if (visible)
+        {
+            cueMarkImage.transform.localScale = Vector3.one;
+            cueMarkImage.rectTransform.sizeDelta = cueMarkSize;
+        }
     }
 
     private string BuildResultBreakdown()
@@ -362,6 +538,55 @@ public sealed class KissTimingGame : MonoBehaviour
         return (long)score;
     }
 
+    private void SubmitUnityroomScore(long score)
+    {
+        if (!submitScoreToUnityroom || score <= 0)
+        {
+            return;
+        }
+
+        Type clientType = FindType("unityroom.Api.UnityroomApiClient");
+        Type writeModeType = FindType("unityroom.Api.ScoreboardWriteMode");
+        if (clientType == null || writeModeType == null)
+        {
+            Debug.LogWarning("unityroom client library is not installed. Score was not submitted.");
+            return;
+        }
+
+        PropertyInfo instanceProperty = clientType.GetProperty("Instance", BindingFlags.Public | BindingFlags.Static);
+        object client = instanceProperty != null ? instanceProperty.GetValue(null) : null;
+        if (client == null)
+        {
+            Debug.LogWarning("UnityroomApiClient.Instance was not found. Put UnityroomApiClient prefab in the InGame scene.");
+            return;
+        }
+
+        object writeMode = Enum.Parse(writeModeType, unityroomScoreWriteMode.ToString());
+        MethodInfo sendScore = clientType.GetMethod("SendScore", new[] { typeof(int), typeof(float), writeModeType });
+        if (sendScore == null)
+        {
+            Debug.LogWarning("UnityroomApiClient.SendScore was not found. Score was not submitted.");
+            return;
+        }
+
+        sendScore.Invoke(client, new[] { unityroomScoreboardNo, (object)Mathf.Min(score, float.MaxValue), writeMode });
+    }
+
+    private static Type FindType(string typeName)
+    {
+        Assembly[] assemblies = AppDomain.CurrentDomain.GetAssemblies();
+        for (int i = 0; i < assemblies.Length; i++)
+        {
+            Type type = assemblies[i].GetType(typeName);
+            if (type != null)
+            {
+                return type;
+            }
+        }
+
+        return null;
+    }
+
     private bool IsAllPerfect()
     {
         if (results.Count < StepCount)
@@ -419,8 +644,11 @@ public sealed class KissTimingGame : MonoBehaviour
     private void PlayCuePop(int stepIndex)
     {
         float scale = 1.1f + stepIndex * 0.12f;
-        cueText.transform.localScale = Vector3.one * scale;
-        StartCoroutine(ScaleBack(cueText.rectTransform, scale, 1f, 0.12f));
+        RectTransform target = cueMarkSprite != null && cueMarkImage != null
+            ? cueMarkImage.rectTransform
+            : cueText.rectTransform;
+        target.localScale = Vector3.one * scale;
+        StartCoroutine(ScaleBack(target, scale, 1f, 0.12f));
     }
 
     private void PlayImpact(JudgeResult judge, int stepIndex)
@@ -446,6 +674,11 @@ public sealed class KissTimingGame : MonoBehaviour
         if (judge == JudgeResult.Perfect || judge == JudgeResult.Good)
         {
             StartCoroutine(ShowSpeedLines(power));
+        }
+
+        if (judge == JudgeResult.Perfect && perfectEffectImage != null && perfectEffectSprite != null)
+        {
+            StartCoroutine(ShowPerfectEffect(power));
         }
 
         if (shakeRoutine != null)
@@ -493,7 +726,8 @@ public sealed class KissTimingGame : MonoBehaviour
     private void SpawnFloatingText(string value)
     {
         TMP_Text text = CreateText("FloatScore", effectRoot, value, 38, FontStyles.Bold, TextAlignmentOptions.Center);
-        text.color = Color.HSVToRGB(Random.Range(0f, 1f), Random.Range(0.55f, 1f), Random.Range(0.9f, 1f));
+        ApplyFont(text, scoreFont);
+        text.color = GetFloatingScoreColor();
         RectTransform rect = text.rectTransform;
         rect.sizeDelta = new Vector2(360f, 80f);
         rect.anchoredPosition = new Vector2(Random.Range(-430f, 430f), Random.Range(-210f, 210f));
@@ -519,6 +753,18 @@ public sealed class KissTimingGame : MonoBehaviour
         }
 
         Destroy(text.gameObject);
+    }
+
+    private static Color GetFloatingScoreColor()
+    {
+        Color[] colors =
+        {
+            new Color(0.05f, 0.02f, 0.85f),
+            new Color(0.12f, 0.62f, 1f),
+            new Color(1f, 0.18f, 0.45f),
+            new Color(1f, 0.88f, 0.12f)
+        };
+        return colors[Random.Range(0, colors.Length)];
     }
 
     private IEnumerator ZoomPunch(float power)
@@ -560,6 +806,15 @@ public sealed class KissTimingGame : MonoBehaviour
         speedLineImage.transform.localScale = Vector3.one * (1f + power * 0.08f);
         yield return new WaitForSeconds(0.13f + power * 0.08f);
         speedLineImage.gameObject.SetActive(false);
+    }
+
+    private IEnumerator ShowPerfectEffect(float power)
+    {
+        perfectEffectImage.gameObject.SetActive(true);
+        perfectEffectImage.color = new Color(1f, 1f, 1f, Mathf.Clamp01(0.45f + power * 0.4f));
+        perfectEffectImage.transform.localScale = Vector3.one * (1f + power * 0.12f);
+        yield return new WaitForSeconds(0.18f + power * 0.1f);
+        perfectEffectImage.gameObject.SetActive(false);
     }
 
     private IEnumerator Flash(float alpha)
@@ -629,6 +884,10 @@ public sealed class KissTimingGame : MonoBehaviour
         cameraRig.localScale = cameraRigBaseScale;
         flashImage.gameObject.SetActive(false);
         speedLineImage.gameObject.SetActive(false);
+        if (perfectEffectImage != null)
+        {
+            perfectEffectImage.gameObject.SetActive(false);
+        }
         kissCutImage.gameObject.SetActive(false);
         explosionImage.gameObject.SetActive(false);
     }
@@ -657,10 +916,144 @@ public sealed class KissTimingGame : MonoBehaviour
         }
     }
 
-    private void SetFace(string left, string right)
+    private void SetIdleFace()
+    {
+        SetCharacterLoop(characterLoopSprites);
+        SetFallbackFace(". .", ". .");
+    }
+
+    private void SetWaitingFace(int stepIndex)
+    {
+        SetFallbackFace(waitFaces[stepIndex], waitFaces[stepIndex]);
+    }
+
+    private void SetCueFace(int stepIndex)
+    {
+        SetFallbackFace(cueFaces[stepIndex], cueFaces[stepIndex]);
+    }
+
+    private void SetResultFace()
+    {
+        SetFallbackFace("<3 <3", "<3 <3");
+    }
+
+    private void SetMissFace()
+    {
+        SetFallbackFace("x x", "x x");
+    }
+
+    private void SetFallbackFace(string left, string right)
     {
         leftFace.text = left;
         rightFace.text = right;
+        bool showFallback = !HasCharacterLoopSprites();
+        leftFace.gameObject.SetActive(showFallback);
+        rightFace.gameObject.SetActive(showFallback);
+    }
+
+    private bool HasCharacterLoopSprites()
+    {
+        return HasAnySprite(characterLoopSprites);
+    }
+
+    private void SetCharacterLoop(Sprite[] sprites)
+    {
+        if (!HasAnySprite(sprites))
+        {
+            return;
+        }
+
+        activeCharacterLoopSprites = sprites;
+    }
+
+    private static bool HasAnySprite(Sprite[] sprites)
+    {
+        if (sprites == null)
+        {
+            return false;
+        }
+
+        for (int i = 0; i < sprites.Length; i++)
+        {
+            if (sprites[i] != null)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private IEnumerator LoopCharacterSprites()
+    {
+        int frame = 0;
+        while (true)
+        {
+            Sprite sprite = GetCharacterLoopSprite(frame);
+            if (sprite != null)
+            {
+                sharedCharacterImage.sprite = sprite;
+            }
+
+            frame++;
+            yield return new WaitForSeconds(GetCharacterLoopInterval());
+        }
+    }
+
+    private float GetCharacterLoopInterval()
+    {
+        return 1f / Mathf.Max(1f, GetCharacterLoopFps());
+    }
+
+    private float GetCharacterLoopFps()
+    {
+        if (!syncCharacterLoopToBpm)
+        {
+            return characterLoopFps;
+        }
+
+        int frameCount = Mathf.Max(1, CountSprites(activeCharacterLoopSprites));
+        float beats = Mathf.Max(0.25f, beatsPerCharacterLoop);
+        return Mathf.Max(1f, musicBpm / 60f * frameCount / beats);
+    }
+
+    private static int CountSprites(Sprite[] sprites)
+    {
+        if (sprites == null)
+        {
+            return 0;
+        }
+
+        int count = 0;
+        for (int i = 0; i < sprites.Length; i++)
+        {
+            if (sprites[i] != null)
+            {
+                count++;
+            }
+        }
+
+        return count;
+    }
+
+    private Sprite GetCharacterLoopSprite(int frame)
+    {
+        Sprite[] sprites = activeCharacterLoopSprites;
+        if (sprites == null || sprites.Length == 0)
+        {
+            return null;
+        }
+
+        for (int offset = 0; offset < sprites.Length; offset++)
+        {
+            Sprite sprite = sprites[(frame + offset) % sprites.Length];
+            if (sprite != null)
+            {
+                return sprite;
+            }
+        }
+
+        return null;
     }
 
     private static string GetJudgeLabel(JudgeResult judge)
@@ -683,6 +1076,30 @@ public sealed class KissTimingGame : MonoBehaviour
             JudgeResult.Flying => new Color(1f, 0.3f, 0.4f),
             _ => new Color(0.6f, 0.65f, 0.72f)
         };
+    }
+
+    private Color GetExplosionColor(JudgeResult finalJudge)
+    {
+        if (explosionSprite != null)
+        {
+            return Color.white;
+        }
+
+        return finalJudge == JudgeResult.Perfect
+            ? new Color(1f, 0.95f, 0.15f, 0.9f)
+            : new Color(1f, 0.45f, 0.8f, 0.75f);
+    }
+
+    private Color GetKissCutColor()
+    {
+        return kissCutSprite != null || HasAnySprite(kissSuccessSprites)
+            ? Color.white
+            : new Color(1f, 0.35f, 0.65f, 0.8f);
+    }
+
+    private static Color GetUiBlue()
+    {
+        return new Color(0.05f, 0.02f, 0.85f);
     }
 
     private static bool WasSubmitPressed()
@@ -714,27 +1131,38 @@ public sealed class KissTimingGame : MonoBehaviour
         effectRoot = CreateRect("Effects", canvas.transform);
         Stretch(effectRoot);
 
-        Image background = CreateImage("Background", stageRoot, new Color(0.22f, 0.02f, 0.78f));
-        Stretch(background.rectTransform);
+        backgroundImage = CreateImage("Background", stageRoot, new Color(0.22f, 0.02f, 0.78f));
+        Stretch(backgroundImage.rectTransform);
+        ApplySprite(backgroundImage, backgroundSprite, false);
 
-        Image leftPanel = CreateImage("LeftCharacter", stageRoot, new Color(1f, 0.58f, 0.62f, 0.96f));
-        leftPanel.rectTransform.anchorMin = new Vector2(0f, 0f);
-        leftPanel.rectTransform.anchorMax = new Vector2(0.5f, 1f);
-        leftPanel.rectTransform.offsetMin = new Vector2(0f, 0f);
-        leftPanel.rectTransform.offsetMax = new Vector2(150f, 0f);
+        sharedCharacterImage = CreateImage("SharedCharacterLoop", stageRoot, Color.white);
+        Stretch(sharedCharacterImage.rectTransform);
+        sharedCharacterImage.preserveAspect = false;
+        sharedCharacterImage.gameObject.SetActive(HasCharacterLoopSprites());
 
-        Image rightPanel = CreateImage("RightCharacter", stageRoot, new Color(1f, 0.62f, 0.54f, 0.96f));
-        rightPanel.rectTransform.anchorMin = new Vector2(0.5f, 0f);
-        rightPanel.rectTransform.anchorMax = new Vector2(1f, 1f);
-        rightPanel.rectTransform.offsetMin = new Vector2(-150f, 0f);
-        rightPanel.rectTransform.offsetMax = new Vector2(0f, 0f);
+        leftCharacterImage = CreateImage("LeftCharacter", stageRoot, new Color(1f, 0.58f, 0.62f, 0.96f));
+        leftCharacterImage.rectTransform.anchorMin = new Vector2(0f, 0f);
+        leftCharacterImage.rectTransform.anchorMax = new Vector2(0.5f, 1f);
+        leftCharacterImage.rectTransform.offsetMin = new Vector2(0f, 0f);
+        leftCharacterImage.rectTransform.offsetMax = new Vector2(150f, 0f);
 
-        TMP_Text kissMark = CreateText("CenterKissMark", stageRoot, "KISS", 160, FontStyles.Bold, TextAlignmentOptions.Center);
-        kissMark.color = new Color(0.12f, 0.02f, 0.85f);
-        kissMark.rectTransform.anchoredPosition = new Vector2(0f, -65f);
-        kissMark.rectTransform.sizeDelta = new Vector2(260f, 260f);
+        rightCharacterImage = CreateImage("RightCharacter", stageRoot, new Color(1f, 0.62f, 0.54f, 0.96f));
+        rightCharacterImage.rectTransform.anchorMin = new Vector2(0.5f, 0f);
+        rightCharacterImage.rectTransform.anchorMax = new Vector2(1f, 1f);
+        rightCharacterImage.rectTransform.offsetMin = new Vector2(-150f, 0f);
+        rightCharacterImage.rectTransform.offsetMax = new Vector2(0f, 0f);
+
+        bool usesSharedCharacterLoop = HasCharacterLoopSprites();
+        leftCharacterImage.gameObject.SetActive(!usesSharedCharacterLoop);
+        rightCharacterImage.gameObject.SetActive(!usesSharedCharacterLoop);
+        if (usesSharedCharacterLoop)
+        {
+            activeCharacterLoopSprites = characterLoopSprites;
+            characterLoopRoutine = StartCoroutine(LoopCharacterSprites());
+        }
 
         leftFace = CreateText("LeftFace", stageRoot, ". .", 120, FontStyles.Bold, TextAlignmentOptions.Center);
+        ApplyFont(leftFace, uiFont);
         leftFace.color = new Color(0.05f, 0.02f, 0.85f);
         leftFace.rectTransform.anchorMin = new Vector2(0.08f, 0.42f);
         leftFace.rectTransform.anchorMax = new Vector2(0.45f, 0.7f);
@@ -742,6 +1170,7 @@ public sealed class KissTimingGame : MonoBehaviour
         leftFace.rectTransform.offsetMax = Vector2.zero;
 
         rightFace = CreateText("RightFace", stageRoot, ". .", 120, FontStyles.Bold, TextAlignmentOptions.Center);
+        ApplyFont(rightFace, uiFont);
         rightFace.color = new Color(0.05f, 0.02f, 0.85f);
         rightFace.rectTransform.anchorMin = new Vector2(0.55f, 0.42f);
         rightFace.rectTransform.anchorMax = new Vector2(0.92f, 0.7f);
@@ -749,52 +1178,97 @@ public sealed class KissTimingGame : MonoBehaviour
         rightFace.rectTransform.offsetMax = Vector2.zero;
 
         titleText = CreateText("TitleText", effectRoot, "", 96, FontStyles.Bold, TextAlignmentOptions.Center);
+        ApplyFont(titleText, uiFont);
         titleText.rectTransform.anchoredPosition = new Vector2(0f, 245f);
         titleText.rectTransform.sizeDelta = new Vector2(1000f, 160f);
 
         phaseText = CreateText("PhaseText", effectRoot, "", 58, FontStyles.Bold, TextAlignmentOptions.Center);
+        ApplyFont(phaseText, uiFont);
         phaseText.rectTransform.anchoredPosition = new Vector2(0f, 370f);
         phaseText.rectTransform.sizeDelta = new Vector2(850f, 100f);
 
         cueText = CreateText("CueText", effectRoot, "", 210, FontStyles.Bold, TextAlignmentOptions.Center);
+        ApplyFont(cueText, uiFont);
         cueText.color = new Color(1f, 0.95f, 0.2f);
         cueText.rectTransform.anchoredPosition = new Vector2(0f, 80f);
         cueText.rectTransform.sizeDelta = new Vector2(260f, 260f);
 
+        cueMarkImage = CreateImage("CueMarkImage", effectRoot, Color.white);
+        cueMarkImage.rectTransform.anchoredPosition = new Vector2(0f, 105f);
+        cueMarkImage.rectTransform.sizeDelta = cueMarkSize;
+        ApplySprite(cueMarkImage, cueMarkSprite, true);
+        cueMarkImage.gameObject.SetActive(false);
+
         judgeText = CreateText("JudgeText", effectRoot, "", 78, FontStyles.Bold, TextAlignmentOptions.Center);
+        ApplyFont(judgeText, uiFont);
         judgeText.rectTransform.anchoredPosition = new Vector2(0f, -295f);
         judgeText.rectTransform.sizeDelta = new Vector2(1100f, 120f);
 
         scoreText = CreateText("ScoreText", effectRoot, "", 86, FontStyles.Bold, TextAlignmentOptions.Center);
-        scoreText.color = new Color(1f, 1f, 1f);
+        ApplyFont(scoreText, scoreFont != null ? scoreFont : uiFont);
+        scoreText.color = GetUiBlue();
         scoreText.rectTransform.anchoredPosition = new Vector2(0f, 35f);
         scoreText.rectTransform.sizeDelta = new Vector2(1300f, 140f);
 
         breakdownText = CreateText("BreakdownText", effectRoot, "", 32, FontStyles.Bold, TextAlignmentOptions.Center);
-        breakdownText.color = new Color(1f, 0.92f, 0.98f);
+        ApplyFont(breakdownText, uiFont);
+        breakdownText.color = GetUiBlue();
         breakdownText.rectTransform.anchoredPosition = new Vector2(0f, -112f);
         breakdownText.rectTransform.sizeDelta = new Vector2(1200f, 220f);
 
         promptText = CreateText("PromptText", effectRoot, "", 44, FontStyles.Bold, TextAlignmentOptions.Center);
+        ApplyFont(promptText, uiFont);
         promptText.rectTransform.anchorMin = new Vector2(0.5f, 0f);
         promptText.rectTransform.anchorMax = new Vector2(0.5f, 0f);
         promptText.rectTransform.anchoredPosition = new Vector2(0f, 82f);
         promptText.rectTransform.sizeDelta = new Vector2(650f, 90f);
 
+        resultButtonRoot = CreateRect("ResultButtons", effectRoot);
+        resultButtonRoot.anchorMin = new Vector2(0.5f, 0f);
+        resultButtonRoot.anchorMax = new Vector2(0.5f, 0f);
+        resultButtonRoot.anchoredPosition = new Vector2(0f, 96f);
+        resultButtonRoot.sizeDelta = new Vector2(760f, 96f);
+
+        Button titleButton = CreateButton(
+            "TitleButton",
+            resultButtonRoot,
+            "TITLE",
+            new Vector2(-205f, 0f),
+            titleButtonSprite,
+            titleButtonHoverSprite,
+            titleButtonPressedSprite,
+            uiFont);
+        titleButton.onClick.AddListener(BackToTitle);
+        Button retryButton = CreateButton(
+            "RetryButton",
+            resultButtonRoot,
+            "RETRY",
+            new Vector2(205f, 0f),
+            retryButtonSprite,
+            retryButtonHoverSprite,
+            retryButtonPressedSprite,
+            uiFont);
+        retryButton.onClick.AddListener(RetryGame);
+        SetResultButtonsVisible(false);
+
         speedLineImage = CreateSpeedLines();
+        perfectEffectImage = CreateImage("PerfectEffect", effectRoot, Color.white);
+        Stretch(perfectEffectImage.rectTransform);
+        ApplySprite(perfectEffectImage, perfectEffectSprite, false);
+        perfectEffectImage.gameObject.SetActive(false);
+
         flashImage = CreateImage("WhiteFlash", effectRoot, Color.clear);
         Stretch(flashImage.rectTransform);
         flashImage.gameObject.SetActive(false);
 
         kissCutImage = CreateImage("KissCut", effectRoot, new Color(1f, 0.35f, 0.65f, 0.8f));
-        kissCutImage.rectTransform.anchorMin = new Vector2(0.05f, 0.06f);
-        kissCutImage.rectTransform.anchorMax = new Vector2(0.95f, 0.94f);
-        kissCutImage.rectTransform.offsetMin = Vector2.zero;
-        kissCutImage.rectTransform.offsetMax = Vector2.zero;
+        Stretch(kissCutImage.rectTransform);
+        ApplySprite(kissCutImage, kissCutSprite, false);
         kissCutImage.gameObject.SetActive(false);
 
         explosionImage = CreateImage("Explosion", effectRoot, new Color(1f, 0.95f, 0.2f, 0.8f));
         explosionImage.rectTransform.sizeDelta = new Vector2(900f, 900f);
+        ApplySprite(explosionImage, explosionSprite, true);
         explosionImage.gameObject.SetActive(false);
     }
 
@@ -802,11 +1276,23 @@ public sealed class KissTimingGame : MonoBehaviour
     {
         Image image = CreateImage("SpeedLines", effectRoot, Color.white);
         Stretch(image.rectTransform);
-        image.sprite = GenerateSpeedLineSprite();
+        image.sprite = speedLineSprite != null ? speedLineSprite : GenerateSpeedLineSprite();
         image.type = Image.Type.Simple;
         image.preserveAspect = false;
         image.gameObject.SetActive(false);
         return image;
+    }
+
+    private static void ApplySprite(Image image, Sprite sprite, bool preserveAspect)
+    {
+        if (sprite == null)
+        {
+            return;
+        }
+
+        image.sprite = sprite;
+        image.color = Color.white;
+        image.preserveAspect = preserveAspect;
     }
 
     private Sprite GenerateSpeedLineSprite()
@@ -852,6 +1338,69 @@ public sealed class KissTimingGame : MonoBehaviour
         return image;
     }
 
+    private static Button CreateButton(
+        string name,
+        Transform parent,
+        string label,
+        Vector2 position,
+        Sprite normalSprite,
+        Sprite hoverSprite,
+        Sprite pressedSprite,
+        TMP_FontAsset font)
+    {
+        var gameObject = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Button));
+        gameObject.transform.SetParent(parent, false);
+
+        RectTransform rect = gameObject.GetComponent<RectTransform>();
+        rect.sizeDelta = new Vector2(320f, 86f);
+        rect.anchoredPosition = position;
+
+        Image image = gameObject.GetComponent<Image>();
+        image.sprite = normalSprite;
+        image.type = normalSprite != null ? Image.Type.Sliced : Image.Type.Simple;
+        image.color = normalSprite != null ? Color.white : new Color(0.18f, 0.9f, 1f, 0.92f);
+
+        Button button = gameObject.GetComponent<Button>();
+        if (normalSprite != null || hoverSprite != null || pressedSprite != null)
+        {
+            SpriteState spriteState = button.spriteState;
+            spriteState.highlightedSprite = hoverSprite != null ? hoverSprite : normalSprite;
+            spriteState.selectedSprite = spriteState.highlightedSprite;
+            spriteState.pressedSprite = pressedSprite != null ? pressedSprite : spriteState.highlightedSprite;
+            button.spriteState = spriteState;
+
+            ColorBlock colors = button.colors;
+            colors.normalColor = Color.white;
+            colors.highlightedColor = Color.white;
+            colors.pressedColor = Color.white;
+            colors.selectedColor = Color.white;
+            button.colors = colors;
+        }
+        else
+        {
+            ColorBlock colors = button.colors;
+            colors.normalColor = image.color;
+            colors.highlightedColor = new Color(0.45f, 1f, 1f, 1f);
+            colors.pressedColor = new Color(1f, 0.95f, 0.25f, 1f);
+            colors.selectedColor = colors.highlightedColor;
+            button.colors = colors;
+        }
+
+        TMP_Text text = CreateText("Label", gameObject.transform, label, 42, FontStyles.Bold, TextAlignmentOptions.Center);
+        ApplyFont(text, font);
+        text.color = new Color(0.08f, 0.04f, 0.62f);
+        Stretch(text.rectTransform);
+        return button;
+    }
+
+    private static void ApplyFont(TMP_Text text, TMP_FontAsset font)
+    {
+        if (text != null && font != null)
+        {
+            text.font = font;
+        }
+    }
+
     private static TMP_Text CreateText(string name, Transform parent, string value, int size, FontStyles style, TextAlignmentOptions anchor)
     {
         var gameObject = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
@@ -875,6 +1424,16 @@ public sealed class KissTimingGame : MonoBehaviour
         rect.anchorMax = Vector2.one;
         rect.offsetMin = Vector2.zero;
         rect.offsetMax = Vector2.zero;
+    }
+
+    private static void EnsureEventSystem()
+    {
+        if (FindAnyObjectByType<UnityEngine.EventSystems.EventSystem>() != null)
+        {
+            return;
+        }
+
+        new GameObject("EventSystem", typeof(UnityEngine.EventSystems.EventSystem), typeof(InputSystemUIInputModule));
     }
 
 }

@@ -10,6 +10,8 @@
     "com.unity.timeline": "1.8.10",
     "com.unity.ugui": "2.0.0",
     "com.unity.visualscripting": "1.9.7",
+    "com.unityroom.client": "https://github.com/naichilab/unityroom-client-library.git?path=Assets/unityroom",
+    "com.yujiap.unity-toolbar-extension": "https://github.com/Yusuke57/UnityToolbarExtension.git",
     "com.unity.modules.accessibility": "1.0.0",
     "com.unity.modules.ai": "1.0.0",
     "com.unity.modules.androidjni": "1.0.0",

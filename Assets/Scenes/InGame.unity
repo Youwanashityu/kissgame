@@ -340,7 +340,117 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1001 &1277579051
+--- !u!1 &781200000
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 781200002}
+  - component: {fileID: 781200001}
+  m_Layer: 0
+  m_Name: GameController
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &781200001
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 781200000}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1d18c7c6dbb2498dbf1c82e4f1d4729d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  cueTimingSeconds:
+  - 0.65
+  - 0.65
+  - 0.65
+  backgroundSprite: {fileID: 0}
+  characterLoopSprites:
+  - {fileID: 21300000, guid: 0d304bb3036221741be828261827de57, type: 3}
+  - {fileID: 21300000, guid: 85d1993b4980c5543b2da006081bcc48, type: 3}
+  - {fileID: 21300000, guid: b18c6f1281277cb45bbc2c76377e257a, type: 3}
+  - {fileID: 21300000, guid: ae05e0efc915b0543896a2cda6423657, type: 3}
+  perfectCharacterLoopSprites:
+  - {fileID: -4609978294434207716, guid: b4155499ad5eb164ba5b8476a983797c, type: 3}
+  - {fileID: 5805758090592813400, guid: 45dd8d20721282c4b98780cdc1e66d10, type: 3}
+  - {fileID: -5577331425514990513, guid: b4b1ade0c38b1ef43adeb3d9f950695f, type: 3}
+  - {fileID: -6518186730998396765, guid: 9f763845892fbf547a8c4cebd6fa3293, type: 3}
+  flyingCharacterLoopSprites:
+  - {fileID: 21300000, guid: e84b43b1464ba094393b13846a49090f, type: 3}
+  - {fileID: 21300000, guid: 7d0ae9276ee69a246a4f98125ae62a6c, type: 3}
+  - {fileID: 21300000, guid: e3d3c531c9604244189dec21195f2788, type: 3}
+  - {fileID: 21300000, guid: af281966dc4ba0542a41dfe1fa7f0bf7, type: 3}
+  missCharacterLoopSprites:
+  - {fileID: 21300000, guid: e84b43b1464ba094393b13846a49090f, type: 3}
+  - {fileID: 21300000, guid: 7d0ae9276ee69a246a4f98125ae62a6c, type: 3}
+  - {fileID: 21300000, guid: e3d3c531c9604244189dec21195f2788, type: 3}
+  - {fileID: 21300000, guid: af281966dc4ba0542a41dfe1fa7f0bf7, type: 3}
+  characterLoopFps: 6
+  syncCharacterLoopToBpm: 1
+  musicBpm: 200
+  beatsPerCharacterLoop: 0.8
+  cueMarkSprite: {fileID: 7194105721645084414, guid: 245de6359f3a31844810669541762114, type: 3}
+  cueMarkSize: {x: 600, y: 480}
+  speedLineSprite: {fileID: 0}
+  perfectEffectSprite: {fileID: -5827669777295958673, guid: 78a9dd3b6a391bf42a42c69e1a42ee62, type: 3}
+  kissCutSprite: {fileID: 0}
+  kissSuccessSprites:
+  - {fileID: 21300000, guid: fc0c674ba1629694d87a630c95fa515c, type: 3}
+  - {fileID: 21300000, guid: cfd325a9214564d419aaa769d0c9b935, type: 3}
+  - {fileID: 21300000, guid: 948a746f5222c1648926393b375c0eb5, type: 3}
+  - {fileID: 21300000, guid: 88fe1d00210f8564c816bc8b05db62c6, type: 3}
+  - {fileID: 21300000, guid: dd1852e6fafb0d249833f08442c62569, type: 3}
+  - {fileID: 21300000, guid: a46b53c6579fd5e4591cee4c75a0d554, type: 3}
+  - {fileID: -8955663194260750514, guid: 85e13998fb236fb4fb25fd9c2dff1203, type: 3}
+  - {fileID: -6599107866258021298, guid: d16704dc8539974439f2e712b0fb9793, type: 3}
+  - {fileID: -5957079857478413494, guid: 0ca71e42d8df978458dcf40e51362a07, type: 3}
+  - {fileID: -7070139023739630036, guid: 3f21dab17fdf0a648a028317ad403f45, type: 3}
+  - {fileID: -784824371060880611, guid: 396de3107ae533b47b65270923ec2bf9, type: 3}
+  - {fileID: 2654547513926704919, guid: d2fbcba99dece9f478e72f98735d87db, type: 3}
+  - {fileID: -8563593348664923735, guid: b3b2768addc8a8d449ed57ac56c57206, type: 3}
+  - {fileID: 5327326082851903873, guid: 75eca20483bbde249bdbf85d91f2aaf4, type: 3}
+  - {fileID: -1663950433691486436, guid: 99b32f247673a0848879efa717cc3baa, type: 3}
+  - {fileID: 3401389517086123294, guid: 6035492776c1f2644b353b93967fcd7f, type: 3}
+  - {fileID: 1267847957555081076, guid: 2312dce0fa1a33f459be49c2027bb6f3, type: 3}
+  kissSuccessFps: 12
+  explosionSprite: {fileID: 0}
+  submitScoreToUnityroom: 1
+  unityroomScoreboardNo: 1
+  unityroomScoreWriteMode: 0
+  titleSceneName: Title
+  uiFont: {fileID: 11400000, guid: 79f28db01604b6142b2b2ea733fe9475, type: 2}
+  scoreFont: {fileID: 11400000, guid: 79f28db01604b6142b2b2ea733fe9475, type: 2}
+  titleButtonSprite: {fileID: -4005234435270106859, guid: d6ccf8db27f9eb64686efda90c433607, type: 3}
+  titleButtonHoverSprite: {fileID: 6169879753116803640, guid: 5d7ae6bd4b40767458045d206911236b, type: 3}
+  titleButtonPressedSprite: {fileID: 8207237791915964684, guid: 1e0bd3cac7227f34fa8d59b46a08e26d, type: 3}
+  retryButtonSprite: {fileID: -4005234435270106859, guid: d6ccf8db27f9eb64686efda90c433607, type: 3}
+  retryButtonHoverSprite: {fileID: 6169879753116803640, guid: 5d7ae6bd4b40767458045d206911236b, type: 3}
+  retryButtonPressedSprite: {fileID: 8207237791915964684, guid: 1e0bd3cac7227f34fa8d59b46a08e26d, type: 3}
+--- !u!4 &781200002
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 781200000}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1001 &1241681539
 PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
@@ -401,7 +511,7 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: a1e2adf402cdebd4cab5e17468b1b7eb, type: 3}
---- !u!1001 &1736064611
+--- !u!1001 &2136730446
 PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
@@ -462,7 +572,8 @@ PrefabInstance:
 SceneRoots:
   m_ObjectHideFlags: 0
   m_Roots:
+  - {fileID: 781200002}
   - {fileID: 519420032}
   - {fileID: 619394802}
-  - {fileID: 1736064611}
-  - {fileID: 1277579051}
+  - {fileID: 2136730446}
+  - {fileID: 1241681539}
