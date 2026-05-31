@@ -3,8 +3,8 @@ using UnityEngine.Audio;
 using UnityEngine.UI;
 
 /// <summary>
-/// プレイヤーがBGM・SEの音量をスライダーで調整し、
-/// ボタンでミュートできるUIコントローラー。
+/// プレイヤーがBGM・SEの音量をスライダーで調整するUIコントローラー。
+/// スライダー値が0のときはAudioMixer上でミュートします。
 /// AudioMixerを直接操作します。
 /// </summary>
 public class VolumeController : MonoBehaviour
@@ -18,37 +18,10 @@ public class VolumeController : MonoBehaviour
 
     [Header("BGM")]
     [SerializeField] private Slider bgmSlider;
-    [SerializeField] private Button bgmMuteButton;
 
     [Header("SE")]
     [SerializeField] private Slider seSlider;
-    [SerializeField] private Button seMuteButton;
-
-    [Header("BGMミュートボタン画像")]
-    [SerializeField] private Image bgmMuteButtonImage;
-    [SerializeField] private Sprite bgmMuteOffSprite;  // 通常時の画像
-    [SerializeField] private Sprite bgmMuteOnSprite;   // ミュート時の画像
-
-    [Header("SEミュートボタン画像")]
-    [SerializeField] private Image seMuteButtonImage;
-    [SerializeField] private Sprite seMuteOffSprite;   // 通常時の画像
-    [SerializeField] private Sprite seMuteOnSprite;    // ミュート時の画像
-
-    // -------------------------------------------------------
-    // 内部状態
-    // -------------------------------------------------------
-
-    /// <summary>ミュート前のBGM音量を保持する</summary>
-    private float lastBGMVolume = 1f;
-
-    /// <summary>ミュート前のSE音量を保持する</summary>
-    private float lastSEVolume = 1f;
-
-    /// <summary>BGMがミュート中かどうか</summary>
-    private bool isBGMMuted = false;
-
-    /// <summary>SEがミュート中かどうか</summary>
-    private bool isSEMuted = false;
+    [SerializeField] private string seSliderPreviewSeName;
 
     // -------------------------------------------------------
     // ライフサイクル
@@ -56,20 +29,22 @@ public class VolumeController : MonoBehaviour
 
     private void Start()
     {
-        // スライダーの範囲を設定
-        bgmSlider.minValue = 0.1f;
-        bgmSlider.maxValue = 1f;
-        bgmSlider.value = 1f;
+        SetupSlider(bgmSlider, OnBGMSliderChanged, ApplyBGMVolume);
+        SetupSlider(seSlider, OnSESliderChanged, ApplySEVolume);
+    }
 
-        seSlider.minValue = 0.1f;
-        seSlider.maxValue = 1f;
-        seSlider.value = 1f;
+    private static void SetupSlider(Slider slider, UnityEngine.Events.UnityAction<float> onChanged, System.Action<float> applyVolume)
+    {
+        if (slider == null)
+        {
+            return;
+        }
 
-        // リスナー登録
-        bgmSlider.onValueChanged.AddListener(OnBGMSliderChanged);
-        seSlider.onValueChanged.AddListener(OnSESliderChanged);
-        bgmMuteButton.onClick.AddListener(ToggleBGMMute);
-        seMuteButton.onClick.AddListener(ToggleSEMute);
+        slider.minValue = 0f;
+        slider.maxValue = 1f;
+        slider.onValueChanged.RemoveListener(onChanged);
+        slider.onValueChanged.AddListener(onChanged);
+        applyVolume(Mathf.Clamp01(slider.value));
     }
 
     // -------------------------------------------------------
@@ -81,10 +56,6 @@ public class VolumeController : MonoBehaviour
     /// </summary>
     private void OnBGMSliderChanged(float value)
     {
-        // ミュート中にスライダーを動かしたらミュート解除
-        if (isBGMMuted) isBGMMuted = false;
-
-        lastBGMVolume = value;
         ApplyBGMVolume(value);
     }
 
@@ -93,53 +64,20 @@ public class VolumeController : MonoBehaviour
     /// </summary>
     private void OnSESliderChanged(float value)
     {
-        if (isSEMuted) isSEMuted = false;
-
-        lastSEVolume = value;
         ApplySEVolume(value);
+        PlaySEPreview(value);
     }
 
-    // -------------------------------------------------------
-    // ミュートボタン
-    // -------------------------------------------------------
-
-    /// <summary>
-    /// BGMのミュートをトグルします。
-    /// </summary>
-    private void ToggleBGMMute()
+    private void PlaySEPreview(float volume)
     {
-        isBGMMuted = !isBGMMuted;
+        if (volume <= 0f
+            || string.IsNullOrWhiteSpace(seSliderPreviewSeName)
+            || SoundManager.Instance == null)
+        {
+            return;
+        }
 
-        if (isBGMMuted)
-        {
-            ApplyBGMVolume(0f);
-            bgmMuteButtonImage.sprite = bgmMuteOnSprite;
-        }
-        else
-        {
-            bgmSlider.value = lastBGMVolume;
-            ApplyBGMVolume(lastBGMVolume);
-            bgmMuteButtonImage.sprite = bgmMuteOffSprite;
-        }
-    }
-    /// <summary>
-    /// SEのミュートをトグルします。
-    /// </summary>
-    private void ToggleSEMute()
-    {
-        isSEMuted = !isSEMuted;
-
-        if (isSEMuted)
-        {
-            ApplySEVolume(0f);
-            seMuteButtonImage.sprite = seMuteOnSprite;
-        }
-        else
-        {
-            seSlider.value = lastSEVolume;
-            ApplySEVolume(lastSEVolume);
-            seMuteButtonImage.sprite = seMuteOffSprite;
-        }
+        SoundManager.Instance.PlaySE(seSliderPreviewSeName);
     }
 
     // -------------------------------------------------------

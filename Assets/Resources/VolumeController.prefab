@@ -46,12 +46,5 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   audioMixer: {fileID: 24100000, guid: 615313f423927ec4abbe0089bfe00167, type: 2}
   bgmSlider: {fileID: 0}
-  bgmMuteButton: {fileID: 0}
   seSlider: {fileID: 0}
-  seMuteButton: {fileID: 0}
-  bgmMuteButtonImage: {fileID: 0}
-  bgmMuteOffSprite: {fileID: 21300000, guid: 31b41b9a6c652024196ae85debcfa476, type: 3}
-  bgmMuteOnSprite: {fileID: 21300000, guid: 1c87af5419784164897d278cee681942, type: 3}
-  seMuteButtonImage: {fileID: 0}
-  seMuteOffSprite: {fileID: 21300000, guid: 31b41b9a6c652024196ae85debcfa476, type: 3}
-  seMuteOnSprite: {fileID: 21300000, guid: 1c87af5419784164897d278cee681942, type: 3}
+  seSliderPreviewSeName: 
