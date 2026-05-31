@@ -89,6 +89,8 @@ public sealed class KissTimingGame : MonoBehaviour
     [SerializeField] private string finalKissSuccessSeName;
     [SerializeField] private string titleButtonSeName;
     [SerializeField] private string retryButtonSeName;
+    [SerializeField] private string resultScoreTickSeName;
+    [SerializeField] private string resultScoreDoneSeName;
 
     [Header("UI Style")]
     [SerializeField] private TMP_FontAsset uiFont;
@@ -313,6 +315,10 @@ public sealed class KissTimingGame : MonoBehaviour
         {
             SetCharacterLoop(perfectCharacterLoopSprites);
         }
+        else if (judge == JudgeResult.Good)
+        {
+            SetCharacterLoop(characterLoopSprites);
+        }
         else if (judge == JudgeResult.Flying)
         {
             SetCharacterLoop(flyingCharacterLoopSprites);
@@ -419,6 +425,7 @@ public sealed class KissTimingGame : MonoBehaviour
         promptText.text = "";
         SetResultFace();
         SetResultButtonsVisible(true);
+        PlaySe(resultScoreTickSeName);
         scoreRoutine = StartCoroutine(CountUpScore(score));
         floatingScoreRoutine = StartCoroutine(SpawnScoreTexts(score));
         SubmitUnityroomScore(score);
@@ -821,6 +828,7 @@ public sealed class KissTimingGame : MonoBehaviour
 
         scoreText.text = finalScore.ToString("N0") + " PTS";
         scoreRoutine = null;
+        PlaySe(resultScoreDoneSeName);
     }
 
     private void SpawnFloatingText(string value)
@@ -837,7 +845,17 @@ public sealed class KissTimingGame : MonoBehaviour
 
     private IEnumerator FloatAndFade(TMP_Text text)
     {
+        if (text == null)
+        {
+            yield break;
+        }
+
         RectTransform rect = text.rectTransform;
+        if (rect == null)
+        {
+            yield break;
+        }
+
         Vector2 start = rect.anchoredPosition;
         Vector2 end = start + new Vector2(Random.Range(-30f, 30f), Random.Range(80f, 150f));
         Color color = text.color;
@@ -845,6 +863,11 @@ public sealed class KissTimingGame : MonoBehaviour
         float startAt = Time.time;
         while (Time.time - startAt < duration)
         {
+            if (text == null || rect == null)
+            {
+                yield break;
+            }
+
             float t = (Time.time - startAt) / duration;
             rect.anchoredPosition = Vector2.Lerp(start, end, t);
             rect.localScale = Vector3.one * Mathf.Lerp(0.75f, 1.35f, Mathf.Sin(t * Mathf.PI));
@@ -852,7 +875,10 @@ public sealed class KissTimingGame : MonoBehaviour
             yield return null;
         }
 
-        Destroy(text.gameObject);
+        if (text != null)
+        {
+            Destroy(text.gameObject);
+        }
     }
 
     private static Color GetFloatingScoreColor()

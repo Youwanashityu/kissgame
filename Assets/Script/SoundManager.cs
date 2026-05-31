@@ -132,7 +132,7 @@ public class SoundManager : MonoBehaviour
 
     /// <summary>
     /// 名前を指定して SE を再生します。
-    /// 同じ SE がすでに再生中の場合は重複再生しません。
+    /// 同じ SE がすでに再生中でも重ねて再生します。
     /// </summary>
     /// <param name="name">SoundData に設定したサウンド名</param>
     public void PlaySE(string name)
@@ -142,14 +142,11 @@ public class SoundManager : MonoBehaviour
             return;
         }
 
-        if (seDict == null)
-        {
-            BuildSeDictionary();
-        }
+        BuildSeDictionary();
 
         if (!seDict.TryGetValue(name, out var data))
         {
-            Debug.LogWarning($"[SoundManager] SE '{name}' が見つかりません。");
+            Debug.LogWarning($"[SoundManager] SE '{name}' が見つかりません。登録済み: {string.Join(", ", seDict.Keys)}");
             return;
         }
 
@@ -164,7 +161,7 @@ public class SoundManager : MonoBehaviour
             seSource = gameObject.AddComponent<AudioSource>();
         }
 
-        seSource.volume = data.volume;
+        seSource.volume = 1f;
         seSource.PlayOneShot(data.clip, data.volume);
     }
 

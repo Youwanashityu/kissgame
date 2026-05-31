@@ -50,26 +50,32 @@ MonoBehaviour:
   bgmSource: {fileID: 4859493318951858545}
   seSource: {fileID: 7991369128355347757}
   seList:
-  - name: Regulation
-    clip: {fileID: 8300000, guid: 26d182f816bc93a439ecc182a7356a5c, type: 3}
+  - name: Button
+    clip: {fileID: 8300000, guid: 61cd127f37c0be24bac0434cec3d2dfa, type: 3}
     volume: 1
-  - name: Bell
-    clip: {fileID: 8300000, guid: f3c68df31482fe24bb093a69c0523bc5, type: 3}
+  - name: Explosion
+    clip: {fileID: 8300000, guid: 2e369de31866c0546a4f2b1c062e120a, type: 3}
     volume: 1
-  - name: Glass
-    clip: {fileID: 8300000, guid: 10ea6189b1ba5ea4fa7cffd844b95192, type: 3}
+  - name: Miss
+    clip: {fileID: 8300000, guid: 333cadb7b81f2eb4c878ad2e1df7befb, type: 3}
     volume: 1
-  - name: Alert
-    clip: {fileID: 8300000, guid: 9792669a28f08764fac1d9c3149abf23, type: 3}
+  - name: Signal
+    clip: {fileID: 8300000, guid: cbccc7c863429274cb052077eda45d75, type: 3}
     volume: 1
-  - name: Call
-    clip: {fileID: 8300000, guid: 718366c8cc14f4c4d874ac67350d9156, type: 3}
+  - name: Success
+    clip: {fileID: 8300000, guid: cbccc7c863429274cb052077eda45d75, type: 3}
     volume: 1
-  - name: Rustle
-    clip: {fileID: 8300000, guid: 4de22826a42cc7943b303e3ed95d2b29, type: 3}
+  - name: Kiss
+    clip: {fileID: 8300000, guid: 8e7a606770e7fbc4bacb7d803aa59c2b, type: 3}
     volume: 1
-  - name: Fall
-    clip: {fileID: 8300000, guid: 0ac2b2c84f9fc58438904f8c708ed39d, type: 3}
+  - name: Result_Jingle
+    clip: {fileID: 8300000, guid: e2508ec073fd1e446a4073c6d926cc97, type: 3}
+    volume: 1
+  - name: ScoreUP
+    clip: {fileID: 8300000, guid: 05503c9a15e064c4898c59b57def4e25, type: 3}
+    volume: 1
+  - name: Start
+    clip: {fileID: 8300000, guid: db6f2689fceb17544804e94ab56dbdb3, type: 3}
     volume: 1
 --- !u!82 &4859493318951858545
 AudioSource:
@@ -84,7 +90,7 @@ AudioSource:
   m_audioClip: {fileID: 0}
   m_Resource: {fileID: 0}
   m_PlayOnAwake: 0
-  m_Volume: 1
+  m_Volume: 0.2
   m_Pitch: 1
   Loop: 0
   Mute: 0

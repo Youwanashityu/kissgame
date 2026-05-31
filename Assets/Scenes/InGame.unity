@@ -434,7 +434,7 @@ MonoBehaviour:
   - {x: 1, y: 3}
   - {x: 2, y: 4}
   - {x: 3, y: 5}
-  perfectWindow: 0.3
+  perfectWindow: 0.25
   goodWindow: 1
   missWindow: 2
   backgroundSprite: {fileID: 0}
@@ -491,14 +491,16 @@ MonoBehaviour:
   unityroomScoreboardNo: 1
   unityroomScoreWriteMode: 0
   titleSceneName: Title
-  cueSeName: 
-  perfectSeName: 
-  goodSeName: 
-  missSeName: 
-  flyingSeName: 
-  finalKissSuccessSeName: 
-  titleButtonSeName: 
-  retryButtonSeName: 
+  cueSeName: Signal
+  perfectSeName: Success
+  goodSeName: Success
+  missSeName: Miss
+  flyingSeName: Miss
+  finalKissSuccessSeName: Kiss
+  titleButtonSeName: Button
+  retryButtonSeName: Button
+  resultScoreTickSeName: ScoreUP
+  resultScoreDoneSeName: Result_Jingle
   uiFont: {fileID: 11400000, guid: 79f28db01604b6142b2b2ea733fe9475, type: 2}
   scoreFont: {fileID: 11400000, guid: 79f28db01604b6142b2b2ea733fe9475, type: 2}
   scoreTextColor: {r: 1, g: 0.86, b: 0.08, a: 1}
@@ -537,7 +539,7 @@ PrefabInstance:
     - target: {fileID: 454420823882576701, guid: a1e2adf402cdebd4cab5e17468b1b7eb, type: 3}
       propertyPath: bgmClip
       value: 
-      objectReference: {fileID: 8300000, guid: 683a646e26ce0e44c9a3e7090362fe61, type: 3}
+      objectReference: {fileID: 8300000, guid: 7afe95a6a0efa844e903f74d1bb55ef8, type: 3}
     - target: {fileID: 1897345456315243281, guid: a1e2adf402cdebd4cab5e17468b1b7eb, type: 3}
       propertyPath: m_LocalPosition.x
       value: 0
