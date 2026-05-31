@@ -77,7 +77,7 @@ public class VolumeController : MonoBehaviour
             return;
         }
 
-        SoundManager.Instance.PlaySE(seSliderPreviewSeName);
+        SoundManager.Instance.PlaySEWhenFinished(seSliderPreviewSeName);
     }
 
     // -------------------------------------------------------

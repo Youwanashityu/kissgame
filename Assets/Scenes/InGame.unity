@@ -486,10 +486,26 @@ MonoBehaviour:
   - {fileID: 3401389517086123294, guid: 6035492776c1f2644b353b93967fcd7f, type: 3}
   - {fileID: 1267847957555081076, guid: 2312dce0fa1a33f459be49c2027bb6f3, type: 3}
   kissSuccessFps: 12
+  kissSuccessSeEvents:
+  - elementIndex: 6
+    seName: Explosion
+  secondJudgeOverlaySprite: {fileID: 0}
+  secondJudgeOverlaySize: {x: 1920, y: 1080}
+  secondJudgeOverlayPosition: {x: 0, y: 0}
+  secondJudgeOverlayPreserveAspect: 0
   explosionSprite: {fileID: 0}
   submitScoreToUnityroom: 1
   unityroomScoreboardNo: 1
   unityroomScoreWriteMode: 0
+  tweetTextTemplate: "\u30EA\u30A2\u5145\u7206\u767A\u3057\u308D\uFF01"
+  tweetGameUrl: https://unityroom.com/users/youwanashityu
+  tweetHashtags: '#KISSICALMASS #unityroom'
+  postButtonSprite: {fileID: -4005234435270106859, guid: d6ccf8db27f9eb64686efda90c433607, type: 3}
+  postButtonHoverSprite: {fileID: 6169879753116803640, guid: 5d7ae6bd4b40767458045d206911236b, type: 3}
+  postButtonPressedSprite: {fileID: 8207237791915964684, guid: 1e0bd3cac7227f34fa8d59b46a08e26d, type: 3}
+  postButtonPosition: {x: 0, y: 360}
+  postButtonSize: {x: 320, y: 86}
+  postButtonSeName: Button
   titleSceneName: Title
   cueSeName: Signal
   perfectSeName: Success

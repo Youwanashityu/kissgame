@@ -4,6 +4,7 @@ using System;
 using System.Reflection;
 using TMPro;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.UI;
 using UnityEngine.SceneManagement;
@@ -32,6 +33,13 @@ public sealed class KissTimingGame : MonoBehaviour
         HighScoreDesc,
         HighScoreAsc,
         Always
+    }
+
+    [System.Serializable]
+    private sealed class KissSuccessSeEvent
+    {
+        [Min(0)] public int elementIndex;
+        public string seName;
     }
 
     private const int StepCount = 3;
@@ -70,12 +78,28 @@ public sealed class KissTimingGame : MonoBehaviour
     [SerializeField] private Sprite kissCutSprite;
     [SerializeField] private Sprite[] kissSuccessSprites;
     [SerializeField] private float kissSuccessFps = 12f;
+    [SerializeField] private KissSuccessSeEvent[] kissSuccessSeEvents;
+    [SerializeField] private Sprite secondJudgeOverlaySprite;
+    [SerializeField] private Vector2 secondJudgeOverlaySize = new Vector2(1920f, 1080f);
+    [SerializeField] private Vector2 secondJudgeOverlayPosition;
+    [SerializeField] private bool secondJudgeOverlayPreserveAspect;
     [SerializeField] private Sprite explosionSprite;
 
     [Header("unityroom Ranking")]
     [SerializeField] private bool submitScoreToUnityroom;
     [SerializeField] private int unityroomScoreboardNo = 1;
     [SerializeField] private UnityroomScoreWriteMode unityroomScoreWriteMode = UnityroomScoreWriteMode.HighScoreDesc;
+
+    [Header("Tweet")]
+    [SerializeField] private string tweetTextTemplate = "天数十四！";
+    [SerializeField] private string tweetGameUrl;
+    [SerializeField] private string tweetHashtags;
+    [SerializeField] private Sprite postButtonSprite;
+    [SerializeField] private Sprite postButtonHoverSprite;
+    [SerializeField] private Sprite postButtonPressedSprite;
+    [SerializeField] private Vector2 postButtonPosition = new Vector2(0f, 360f);
+    [SerializeField] private Vector2 postButtonSize = new Vector2(320f, 86f);
+    [SerializeField] private string postButtonSeName;
 
     [Header("Scene Flow")]
     [SerializeField] private string titleSceneName = "Title";
@@ -115,6 +139,7 @@ public sealed class KissTimingGame : MonoBehaviour
     private Image sharedCharacterImage;
     private Image leftCharacterImage;
     private Image rightCharacterImage;
+    private Image secondJudgeOverlayImage;
     private TMP_Text titleText;
     private TMP_Text phaseText;
     private TMP_Text cueText;
@@ -125,6 +150,8 @@ public sealed class KissTimingGame : MonoBehaviour
     private TMP_Text leftFace;
     private TMP_Text rightFace;
     private RectTransform resultButtonRoot;
+    private RectTransform postButtonRoot;
+    private Button postButton;
     private Image cueMarkImage;
     private Image flashImage;
     private Image speedLineImage;
@@ -145,6 +172,7 @@ public sealed class KissTimingGame : MonoBehaviour
     private Coroutine floatingScoreRoutine;
     private Coroutine characterLoopRoutine;
     private Sprite[] activeCharacterLoopSprites;
+    private long lastResultScore;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     private static void Bootstrap()
@@ -175,6 +203,11 @@ public sealed class KissTimingGame : MonoBehaviour
     {
         if (WasSubmitPressed())
         {
+            if (IsPointerOverUi())
+            {
+                return;
+            }
+
             if (!running && !showingResult)
             {
                 StartCoroutine(PlayGame());
@@ -195,6 +228,7 @@ public sealed class KissTimingGame : MonoBehaviour
         RestartSceneBgm();
         results.Clear();
         ResetEffects();
+        SetSecondJudgeOverlayVisible(false);
         SetResultButtonsVisible(false);
 
         titleText.text = "";
@@ -330,6 +364,15 @@ public sealed class KissTimingGame : MonoBehaviour
 
         PlayJudgeSe(judge);
         PlayImpact(judge, currentStep);
+
+        if (currentStep == 1)
+        {
+            SetSecondJudgeOverlayVisible(true);
+        }
+        else if (currentStep == 2)
+        {
+            SetSecondJudgeOverlayVisible(false);
+        }
     }
 
     private IEnumerator PlayFinalSequence()
@@ -386,6 +429,7 @@ public sealed class KissTimingGame : MonoBehaviour
 
                 kissCutImage.sprite = kissSuccessSprites[i];
                 kissCutImage.color = Color.white;
+                PlayKissSuccessSeEvents(i);
                 yield return new WaitForSeconds(frameInterval);
             }
 
@@ -393,6 +437,25 @@ public sealed class KissTimingGame : MonoBehaviour
         }
 
         yield return new WaitForSeconds(0.18f);
+    }
+
+    private void PlayKissSuccessSeEvents(int elementIndex)
+    {
+        if (kissSuccessSeEvents == null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < kissSuccessSeEvents.Length; i++)
+        {
+            KissSuccessSeEvent seEvent = kissSuccessSeEvents[i];
+            if (seEvent == null || seEvent.elementIndex != elementIndex)
+            {
+                continue;
+            }
+
+            PlaySe(seEvent.seName);
+        }
     }
 
     private void ShowTitle()
@@ -415,6 +478,7 @@ public sealed class KissTimingGame : MonoBehaviour
     private void ShowResult()
     {
         long score = CalculateScore();
+        lastResultScore = score;
         showingResult = true;
         titleText.text = "";
         phaseText.text = "";
@@ -464,11 +528,22 @@ public sealed class KissTimingGame : MonoBehaviour
         RetryGame();
     }
 
+    private void OnPostButtonClicked()
+    {
+        PlaySe(postButtonSeName);
+        TweetResult(lastResultScore);
+    }
+
     private void SetResultButtonsVisible(bool visible)
     {
         if (resultButtonRoot != null)
         {
             resultButtonRoot.gameObject.SetActive(visible);
+        }
+
+        if (postButtonRoot != null)
+        {
+            postButtonRoot.gameObject.SetActive(visible);
         }
     }
 
@@ -528,6 +603,27 @@ public sealed class KissTimingGame : MonoBehaviour
             cueMarkImage.transform.localScale = Vector3.one;
             cueMarkImage.rectTransform.sizeDelta = cueMarkSize;
         }
+    }
+
+    private void SetSecondJudgeOverlayVisible(bool visible)
+    {
+        if (secondJudgeOverlayImage == null)
+        {
+            return;
+        }
+
+        bool shouldShow = visible && secondJudgeOverlaySprite != null;
+        secondJudgeOverlayImage.gameObject.SetActive(shouldShow);
+        if (!shouldShow)
+        {
+            return;
+        }
+
+        secondJudgeOverlayImage.sprite = secondJudgeOverlaySprite;
+        secondJudgeOverlayImage.color = Color.white;
+        secondJudgeOverlayImage.preserveAspect = secondJudgeOverlayPreserveAspect;
+        secondJudgeOverlayImage.rectTransform.sizeDelta = secondJudgeOverlaySize;
+        secondJudgeOverlayImage.rectTransform.anchoredPosition = secondJudgeOverlayPosition;
     }
 
     private string BuildResultBreakdown()
@@ -682,6 +778,161 @@ public sealed class KissTimingGame : MonoBehaviour
         }
 
         sendScore.Invoke(client, new[] { unityroomScoreboardNo, (object)Mathf.Min(score, float.MaxValue), writeMode });
+    }
+
+    private void TweetResult(long score)
+    {
+        string tweetText = FormatTweetText(score);
+        Type tweetType = FindType("naichilab.UnityRoomTweet");
+        if (tweetType != null && TryCallUnityroomTweet(tweetType, tweetText))
+        {
+            return;
+        }
+
+        string url = BuildTweetFallbackUrl(tweetText);
+        Application.OpenURL(url);
+    }
+
+    private string FormatTweetText(long score)
+    {
+        string text = string.IsNullOrEmpty(tweetTextTemplate) ? string.Empty : tweetTextTemplate;
+        text = text
+            .Replace("{score}", score.ToString())
+            .Replace("{scoreN0}", score.ToString("N0"));
+        string scoreLine = score.ToString("N0") + " PTS";
+        return string.IsNullOrWhiteSpace(text) ? scoreLine : text + "\n" + scoreLine;
+    }
+
+    private bool TryCallUnityroomTweet(Type tweetType, string tweetText)
+    {
+        string gameId = ExtractUnityroomGameId(tweetGameUrl);
+        string[] hashtags = GetNormalizedHashtags();
+        string hashtag1 = hashtags.Length > 0 ? hashtags[0] : string.Empty;
+        string hashtag2 = hashtags.Length > 1 ? hashtags[1] : string.Empty;
+
+        if (string.IsNullOrWhiteSpace(gameId))
+        {
+            return false;
+        }
+
+        if (!string.IsNullOrEmpty(hashtag1) && !string.IsNullOrEmpty(hashtag2)
+            && TryInvokeTweet(tweetType, new object[] { gameId, tweetText, hashtag1, hashtag2 }))
+        {
+            return true;
+        }
+
+        if (!string.IsNullOrEmpty(hashtag1)
+            && TryInvokeTweet(tweetType, new object[] { gameId, tweetText, hashtag1 }))
+        {
+            return true;
+        }
+
+        return TryInvokeTweet(tweetType, new object[] { gameId, tweetText });
+    }
+
+    private string BuildTweetFallbackUrl(string tweetText)
+    {
+        List<string> query = new List<string>
+        {
+            "text=" + Uri.EscapeDataString(tweetText)
+        };
+
+        if (!string.IsNullOrWhiteSpace(tweetGameUrl))
+        {
+            query.Add("url=" + Uri.EscapeDataString(tweetGameUrl));
+        }
+
+        string hashtags = BuildHashtagQuery();
+        if (!string.IsNullOrEmpty(hashtags))
+        {
+            query.Add("hashtags=" + Uri.EscapeDataString(hashtags));
+        }
+
+        return "https://twitter.com/intent/tweet?" + string.Join("&", query);
+    }
+
+    private string BuildHashtagQuery()
+    {
+        return string.Join(",", GetNormalizedHashtags());
+    }
+
+    private string[] GetNormalizedHashtags()
+    {
+        if (string.IsNullOrWhiteSpace(tweetHashtags))
+        {
+            return Array.Empty<string>();
+        }
+
+        string[] parts = tweetHashtags.Split(new[] { ',', ' ', '\n', '\r', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+        List<string> hashtags = new List<string>();
+        for (int i = 0; i < parts.Length; i++)
+        {
+            string hashtag = NormalizeHashtag(parts[i]);
+            if (!string.IsNullOrEmpty(hashtag))
+            {
+                hashtags.Add(hashtag);
+            }
+        }
+
+        return hashtags.ToArray();
+    }
+
+    private static string ExtractUnityroomGameId(string gameUrl)
+    {
+        if (string.IsNullOrWhiteSpace(gameUrl))
+        {
+            return string.Empty;
+        }
+
+        string trimmed = gameUrl.Trim().TrimEnd('/');
+        int slashIndex = trimmed.LastIndexOf('/');
+        return slashIndex >= 0 ? trimmed.Substring(slashIndex + 1) : trimmed;
+    }
+
+    private static string NormalizeHashtag(string hashtag)
+    {
+        return string.IsNullOrWhiteSpace(hashtag)
+            ? string.Empty
+            : hashtag.Trim().TrimStart('#');
+    }
+
+    private static bool TryInvokeTweet(Type tweetType, object[] args)
+    {
+        MethodInfo[] methods = tweetType.GetMethods(BindingFlags.Public | BindingFlags.Static);
+        for (int i = 0; i < methods.Length; i++)
+        {
+            MethodInfo method = methods[i];
+            if (method.Name != "Tweet")
+            {
+                continue;
+            }
+
+            ParameterInfo[] parameters = method.GetParameters();
+            if (parameters.Length != args.Length)
+            {
+                continue;
+            }
+
+            bool canUse = true;
+            for (int p = 0; p < parameters.Length; p++)
+            {
+                if (parameters[p].ParameterType != typeof(string))
+                {
+                    canUse = false;
+                    break;
+                }
+            }
+
+            if (!canUse)
+            {
+                continue;
+            }
+
+            method.Invoke(null, args);
+            return true;
+        }
+
+        return false;
     }
 
     private static Type FindType(string typeName)
@@ -1251,8 +1502,59 @@ public sealed class KissTimingGame : MonoBehaviour
     {
         Keyboard keyboard = Keyboard.current;
         Mouse mouse = Mouse.current;
+        Touchscreen touchscreen = Touchscreen.current;
         return (keyboard != null && keyboard.spaceKey.wasPressedThisFrame)
-               || (mouse != null && mouse.leftButton.wasPressedThisFrame);
+               || (mouse != null && mouse.leftButton.wasPressedThisFrame)
+               || (touchscreen != null && touchscreen.primaryTouch.press.wasPressedThisFrame);
+    }
+
+    private static bool IsPointerOverUi()
+    {
+        EventSystem eventSystem = EventSystem.current;
+        if (eventSystem == null)
+        {
+            return false;
+        }
+
+        Mouse mouse = Mouse.current;
+        if (mouse != null && mouse.leftButton.wasPressedThisFrame)
+        {
+            return IsPointerOverSelectable(mouse.position.ReadValue());
+        }
+
+        Touchscreen touchscreen = Touchscreen.current;
+        if (touchscreen != null && touchscreen.primaryTouch.press.wasPressedThisFrame)
+        {
+            return IsPointerOverSelectable(touchscreen.primaryTouch.position.ReadValue());
+        }
+
+        return false;
+    }
+
+    private static bool IsPointerOverSelectable(Vector2 screenPosition)
+    {
+        EventSystem eventSystem = EventSystem.current;
+        if (eventSystem == null)
+        {
+            return false;
+        }
+
+        var pointerData = new PointerEventData(eventSystem)
+        {
+            position = screenPosition
+        };
+        var results = new List<RaycastResult>();
+        eventSystem.RaycastAll(pointerData, results);
+        for (int i = 0; i < results.Count; i++)
+        {
+            GameObject target = results[i].gameObject;
+            if (target != null && target.GetComponentInParent<Selectable>() != null)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private void BuildUi()
@@ -1309,6 +1611,16 @@ public sealed class KissTimingGame : MonoBehaviour
             activeCharacterLoopSprites = characterLoopSprites;
             characterLoopRoutine = StartCoroutine(LoopCharacterSprites());
         }
+
+        secondJudgeOverlayImage = CreateImage("SecondJudgeOverlay", stageRoot, Color.white);
+        secondJudgeOverlayImage.rectTransform.anchorMin = new Vector2(0.5f, 0.5f);
+        secondJudgeOverlayImage.rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
+        secondJudgeOverlayImage.rectTransform.pivot = new Vector2(0.5f, 0.5f);
+        secondJudgeOverlayImage.sprite = secondJudgeOverlaySprite;
+        secondJudgeOverlayImage.preserveAspect = secondJudgeOverlayPreserveAspect;
+        secondJudgeOverlayImage.rectTransform.sizeDelta = secondJudgeOverlaySize;
+        secondJudgeOverlayImage.rectTransform.anchoredPosition = secondJudgeOverlayPosition;
+        secondJudgeOverlayImage.gameObject.SetActive(false);
 
         leftFace = CreateText("LeftFace", stageRoot, ". .", 120, FontStyles.Bold, TextAlignmentOptions.Center);
         ApplyFont(leftFace, uiFont);
@@ -1372,6 +1684,23 @@ public sealed class KissTimingGame : MonoBehaviour
         promptText.rectTransform.anchorMax = new Vector2(0.5f, 0f);
         promptText.rectTransform.anchoredPosition = new Vector2(0f, 82f);
         promptText.rectTransform.sizeDelta = new Vector2(650f, 90f);
+
+        postButtonRoot = CreateRect("PostButtonRoot", uiRoot);
+        postButtonRoot.anchorMin = new Vector2(0.5f, 0.5f);
+        postButtonRoot.anchorMax = new Vector2(0.5f, 0.5f);
+        postButtonRoot.anchoredPosition = postButtonPosition;
+        postButtonRoot.sizeDelta = postButtonSize;
+        postButton = CreateButton(
+            "PostButton",
+            postButtonRoot,
+            "POST",
+            Vector2.zero,
+            postButtonSprite,
+            postButtonHoverSprite,
+            postButtonPressedSprite,
+            uiFont);
+        postButton.GetComponent<RectTransform>().sizeDelta = postButtonSize;
+        postButton.onClick.AddListener(OnPostButtonClicked);
 
         resultButtonRoot = CreateRect("ResultButtons", uiRoot);
         resultButtonRoot.anchorMin = new Vector2(0.5f, 0f);

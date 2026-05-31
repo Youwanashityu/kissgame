@@ -56,6 +56,7 @@ public class SoundManager : MonoBehaviour
 
     /// <summary>名前をキーにした SE の高速検索用辞書</summary>
     private Dictionary<string, SoundData> seDict;
+    private readonly Dictionary<string, float> seEndTimes = new();
 
     // -------------------------------------------------------
     // 自動初期化（どのシーンから起動しても動作する）
@@ -137,25 +138,57 @@ public class SoundManager : MonoBehaviour
     /// <param name="name">SoundData に設定したサウンド名</param>
     public void PlaySE(string name)
     {
-        if (string.IsNullOrWhiteSpace(name))
+        if (!TryGetSoundData(name, out SoundData data))
         {
             return;
+        }
+
+        PlaySoundData(data);
+    }
+
+    public void PlaySEWhenFinished(string name)
+    {
+        if (!TryGetSoundData(name, out SoundData data))
+        {
+            return;
+        }
+
+        if (seEndTimes.TryGetValue(name, out float endTime) && Time.unscaledTime < endTime)
+        {
+            return;
+        }
+
+        PlaySoundData(data);
+        seEndTimes[name] = Time.unscaledTime + data.clip.length;
+    }
+
+    private bool TryGetSoundData(string name, out SoundData data)
+    {
+        data = null;
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return false;
         }
 
         BuildSeDictionary();
 
-        if (!seDict.TryGetValue(name, out var data))
+        if (!seDict.TryGetValue(name, out data))
         {
             Debug.LogWarning($"[SoundManager] SE '{name}' が見つかりません。登録済み: {string.Join(", ", seDict.Keys)}");
-            return;
+            return false;
         }
 
-        if (data.clip == null)
+        if (data.clip != null)
         {
-            Debug.LogWarning($"[SoundManager] SE '{name}' に AudioClip が設定されていません。");
-            return;
+            return true;
         }
 
+        Debug.LogWarning($"[SoundManager] SE '{name}' に AudioClip が設定されていません。");
+        return false;
+    }
+
+    private void PlaySoundData(SoundData data)
+    {
         if (seSource == null)
         {
             seSource = gameObject.AddComponent<AudioSource>();
