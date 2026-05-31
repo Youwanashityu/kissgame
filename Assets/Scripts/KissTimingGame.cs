@@ -35,9 +35,6 @@ public sealed class KissTimingGame : MonoBehaviour
     }
 
     private const int StepCount = 3;
-    private const float PerfectWindow = 0.08f;
-    private const float GoodWindow = 0.25f;
-    private const float MissWindow = 0.45f;
     private const long StepBaseScore = 100000;
 
     private readonly List<StepResult> results = new List<StepResult>();
@@ -52,6 +49,9 @@ public sealed class KissTimingGame : MonoBehaviour
         new Vector2(0.45f, 0.95f),
         new Vector2(0.45f, 0.95f)
     };
+    [SerializeField] private float perfectWindow = 0.08f;
+    [SerializeField] private float goodWindow = 0.25f;
+    [SerializeField] private float missWindow = 0.45f;
 
     [Header("Production Sprites")]
     [SerializeField] private Sprite backgroundSprite;
@@ -86,6 +86,7 @@ public sealed class KissTimingGame : MonoBehaviour
     [SerializeField] private Color scoreTextColor = new Color(1f, 0.86f, 0.08f);
     [SerializeField] private Color scoreOutlineColor = new Color(0.05f, 0.02f, 0.85f);
     [SerializeField, Range(0f, 0.5f)] private float scoreOutlineWidth = 0.22f;
+    [SerializeField] private string inputPromptText = "SPACE / CLICK";
     [SerializeField] private Sprite titleButtonSprite;
     [SerializeField] private Sprite titleButtonHoverSprite;
     [SerializeField] private Sprite titleButtonPressedSprite;
@@ -179,6 +180,7 @@ public sealed class KissTimingGame : MonoBehaviour
     {
         running = true;
         showingResult = false;
+        RestartSceneBgm();
         results.Clear();
         ResetEffects();
         SetResultButtonsVisible(false);
@@ -234,7 +236,7 @@ public sealed class KissTimingGame : MonoBehaviour
         SetCueFace(stepIndex);
         PlayCuePop(stepIndex);
 
-        while (Time.time - cueShownAt < MissWindow && waitingForInput)
+        while (Time.time - cueShownAt < GetMissWindow() && waitingForInput)
         {
             PulseStage(1.01f + Mathf.Sin(Time.time * 18f) * 0.01f);
             yield return null;
@@ -242,7 +244,7 @@ public sealed class KissTimingGame : MonoBehaviour
 
         if (waitingForInput)
         {
-            RegisterJudge(JudgeResult.Miss, MissWindow);
+            RegisterJudge(JudgeResult.Miss, GetMissWindow());
         }
     }
 
@@ -273,11 +275,11 @@ public sealed class KissTimingGame : MonoBehaviour
         }
 
         float error = Time.time - cueShownAt;
-        if (error <= PerfectWindow)
+        if (error <= GetPerfectWindow())
         {
             RegisterJudge(JudgeResult.Perfect, error);
         }
-        else if (error <= GoodWindow)
+        else if (error <= GetGoodWindow())
         {
             RegisterJudge(JudgeResult.Good, error);
         }
@@ -387,7 +389,7 @@ public sealed class KissTimingGame : MonoBehaviour
         scoreText.text = "";
         breakdownText.text = "";
         titleText.text = "";
-        promptText.text = "SPACE / CLICK";
+        promptText.text = inputPromptText;
         SetIdleFace();
     }
 
@@ -436,6 +438,25 @@ public sealed class KissTimingGame : MonoBehaviour
         {
             resultButtonRoot.gameObject.SetActive(visible);
         }
+    }
+
+    private void RestartSceneBgm()
+    {
+        BGMChange bgmChange = FindAnyObjectByType<BGMChange>();
+        if (bgmChange == null || SoundManager.Instance == null)
+        {
+            return;
+        }
+
+        FieldInfo bgmClipField = typeof(BGMChange).GetField("bgmClip", BindingFlags.Instance | BindingFlags.NonPublic);
+        AudioClip bgmClip = bgmClipField != null ? bgmClipField.GetValue(bgmChange) as AudioClip : null;
+        if (bgmClip == null)
+        {
+            return;
+        }
+
+        SoundManager.Instance.StopBGM();
+        SoundManager.Instance.PlayBGM(bgmClip);
     }
 
     private void SetCueMarkVisible(bool visible)
@@ -510,7 +531,7 @@ public sealed class KissTimingGame : MonoBehaviour
         return hasScoringHit ? ClampScore(score) : 0;
     }
 
-    private static double CalculateStepScore(StepResult result, int stepIndex, int successChain)
+    private double CalculateStepScore(StepResult result, int stepIndex, int successChain)
     {
         float timingMultiplier = GetTimingMultiplier(result);
         float stepMultiplier = stepIndex switch
@@ -520,27 +541,42 @@ public sealed class KissTimingGame : MonoBehaviour
             _ => 10f
         };
         float chainMultiplier = 1f + (successChain - 1) * 0.5f;
-        float nearZeroBonus = Mathf.Max(0f, 1f - Mathf.Abs(result.ErrorSeconds) / GoodWindow) * 9999f;
+        float nearZeroBonus = Mathf.Max(0f, 1f - Mathf.Abs(result.ErrorSeconds) / GetGoodWindow()) * 9999f;
 
         return StepBaseScore * timingMultiplier * stepMultiplier * chainMultiplier + nearZeroBonus;
     }
 
-    private static float GetTimingMultiplier(StepResult result)
+    private float GetTimingMultiplier(StepResult result)
     {
         if (result.Judge == JudgeResult.Perfect)
         {
-            float accuracy = 1f - Mathf.Clamp01(result.ErrorSeconds / PerfectWindow);
+            float accuracy = 1f - Mathf.Clamp01(result.ErrorSeconds / GetPerfectWindow());
             return Mathf.Lerp(100f, 300f, accuracy);
         }
 
         if (result.Judge == JudgeResult.Good)
         {
-            float goodRange = GoodWindow - PerfectWindow;
-            float accuracy = 1f - Mathf.Clamp01((result.ErrorSeconds - PerfectWindow) / goodRange);
+            float goodRange = Mathf.Max(0.01f, GetGoodWindow() - GetPerfectWindow());
+            float accuracy = 1f - Mathf.Clamp01((result.ErrorSeconds - GetPerfectWindow()) / goodRange);
             return Mathf.Lerp(10f, 80f, accuracy);
         }
 
         return 0f;
+    }
+
+    private float GetPerfectWindow()
+    {
+        return Mathf.Max(0.01f, perfectWindow);
+    }
+
+    private float GetGoodWindow()
+    {
+        return Mathf.Max(GetPerfectWindow() + 0.01f, goodWindow);
+    }
+
+    private float GetMissWindow()
+    {
+        return Mathf.Max(GetGoodWindow() + 0.01f, missWindow);
     }
 
     private static long ClampScore(double score)
@@ -627,20 +663,18 @@ public sealed class KissTimingGame : MonoBehaviour
 
     private string GetResultHeadline()
     {
+        JudgeResult finalJudge = GetFinalJudge();
         if (IsAllPerfect())
         {
             return "PERFECT KISS!!!";
         }
 
-        foreach (StepResult result in results)
+        if (finalJudge == JudgeResult.Perfect || finalJudge == JudgeResult.Good)
         {
-            if (result.Judge == JudgeResult.Flying || result.Judge == JudgeResult.Miss)
-            {
-                return GetJudgeLabel(result.Judge);
-            }
+            return GetJudgeLabel(finalJudge);
         }
 
-        return "GOOD KISS!";
+        return GetJudgeLabel(finalJudge);
     }
 
     private JudgeResult GetBestFinalJudge()
@@ -650,15 +684,12 @@ public sealed class KissTimingGame : MonoBehaviour
             return JudgeResult.Perfect;
         }
 
-        foreach (StepResult result in results)
-        {
-            if (result.Judge == JudgeResult.Flying || result.Judge == JudgeResult.Miss)
-            {
-                return result.Judge;
-            }
-        }
+        return GetFinalJudge();
+    }
 
-        return JudgeResult.Good;
+    private JudgeResult GetFinalJudge()
+    {
+        return results.Count > 0 ? results[results.Count - 1].Judge : JudgeResult.Miss;
     }
 
     private void PlayCuePop(int stepIndex)

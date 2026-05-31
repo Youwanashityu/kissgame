@@ -340,13 +340,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1660057539 &9223372036854775807
-SceneRoots:
-  m_ObjectHideFlags: 0
-  m_Roots:
-  - {fileID: 519420032}
-  - {fileID: 619394802}
-  - {fileID: 781300002}
 --- !u!1 &781300000
 GameObject:
   m_ObjectHideFlags: 0
@@ -377,13 +370,13 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   inGameSceneName: InGame
-  playButtonSprite: {fileID: 0}
-  playButtonHoverSprite: {fileID: 0}
-  playButtonPressedSprite: {fileID: 0}
+  playButtonSprite: {fileID: -4005234435270106859, guid: d6ccf8db27f9eb64686efda90c433607, type: 3}
+  playButtonHoverSprite: {fileID: 6169879753116803640, guid: 5d7ae6bd4b40767458045d206911236b, type: 3}
+  playButtonPressedSprite: {fileID: 8207237791915964684, guid: 1e0bd3cac7227f34fa8d59b46a08e26d, type: 3}
   playButtonSize: {x: 420, y: 120}
   playButtonPosition: {x: 0, y: -300}
   playButtonText: PLAY
-  playButtonFont: {fileID: 0}
+  playButtonFont: {fileID: 11400000, guid: 79f28db01604b6142b2b2ea733fe9475, type: 2}
   playButtonTextColor: {r: 0.05, g: 0.02, b: 0.85, a: 1}
   playButtonFontSize: 52
 --- !u!4 &781300002
@@ -401,3 +394,10 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1660057539 &9223372036854775807
+SceneRoots:
+  m_ObjectHideFlags: 0
+  m_Roots:
+  - {fileID: 519420032}
+  - {fileID: 619394802}
+  - {fileID: 781300002}
