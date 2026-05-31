@@ -491,6 +491,14 @@ MonoBehaviour:
   unityroomScoreboardNo: 1
   unityroomScoreWriteMode: 0
   titleSceneName: Title
+  cueSeName: 
+  perfectSeName: 
+  goodSeName: 
+  missSeName: 
+  flyingSeName: 
+  finalKissSuccessSeName: 
+  titleButtonSeName: 
+  retryButtonSeName: 
   uiFont: {fileID: 11400000, guid: 79f28db01604b6142b2b2ea733fe9475, type: 2}
   scoreFont: {fileID: 11400000, guid: 79f28db01604b6142b2b2ea733fe9475, type: 2}
   scoreTextColor: {r: 1, g: 0.86, b: 0.08, a: 1}

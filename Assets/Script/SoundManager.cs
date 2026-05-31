@@ -97,12 +97,7 @@ public class SoundManager : MonoBehaviour
         DontDestroyOnLoad(gameObject);
 
         // SE 辞書を構築
-        seDict = new Dictionary<string, SoundData>();
-        foreach (var s in seList)
-        {
-            if (!string.IsNullOrEmpty(s.name) && !seDict.ContainsKey(s.name))
-                seDict.Add(s.name, s);
-        }
+        BuildSeDictionary();
     }
 
     // -------------------------------------------------------
@@ -142,18 +137,48 @@ public class SoundManager : MonoBehaviour
     /// <param name="name">SoundData に設定したサウンド名</param>
     public void PlaySE(string name)
     {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return;
+        }
+
+        if (seDict == null)
+        {
+            BuildSeDictionary();
+        }
+
         if (!seDict.TryGetValue(name, out var data))
         {
             Debug.LogWarning($"[SoundManager] SE '{name}' が見つかりません。");
             return;
         }
 
-        if (seSource.isPlaying && seSource.clip == data.clip) return;
+        if (data.clip == null)
+        {
+            Debug.LogWarning($"[SoundManager] SE '{name}' に AudioClip が設定されていません。");
+            return;
+        }
 
-        seSource.clip = data.clip;
+        if (seSource == null)
+        {
+            seSource = gameObject.AddComponent<AudioSource>();
+        }
+
         seSource.volume = data.volume;
-        Debug.Log($"[SoundManager] Play直前 volume:{seSource.volume} clip:{seSource.clip?.name} output:{seSource.outputAudioMixerGroup}");
-        seSource.Play();
-        Debug.Log($"[SoundManager] Play直後 isPlaying:{seSource.isPlaying}");
+        seSource.PlayOneShot(data.clip, data.volume);
+    }
+
+    private void BuildSeDictionary()
+    {
+        seDict = new Dictionary<string, SoundData>();
+        foreach (var s in seList)
+        {
+            if (s == null || string.IsNullOrEmpty(s.name) || seDict.ContainsKey(s.name))
+            {
+                continue;
+            }
+
+            seDict.Add(s.name, s);
+        }
     }
 }

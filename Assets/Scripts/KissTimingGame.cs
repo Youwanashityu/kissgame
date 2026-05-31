@@ -80,6 +80,16 @@ public sealed class KissTimingGame : MonoBehaviour
     [Header("Scene Flow")]
     [SerializeField] private string titleSceneName = "Title";
 
+    [Header("Sound Effects")]
+    [SerializeField] private string cueSeName;
+    [SerializeField] private string perfectSeName;
+    [SerializeField] private string goodSeName;
+    [SerializeField] private string missSeName;
+    [SerializeField] private string flyingSeName;
+    [SerializeField] private string finalKissSuccessSeName;
+    [SerializeField] private string titleButtonSeName;
+    [SerializeField] private string retryButtonSeName;
+
     [Header("UI Style")]
     [SerializeField] private TMP_FontAsset uiFont;
     [SerializeField] private TMP_FontAsset scoreFont;
@@ -234,6 +244,7 @@ public sealed class KissTimingGame : MonoBehaviour
         cueText.text = cueMarkSprite == null ? "!" : "";
         SetCueMarkVisible(true);
         SetCueFace(stepIndex);
+        PlaySe(cueSeName);
         PlayCuePop(stepIndex);
 
         while (Time.time - cueShownAt < GetMissWindow() && waitingForInput)
@@ -311,6 +322,7 @@ public sealed class KissTimingGame : MonoBehaviour
             SetCharacterLoop(missCharacterLoopSprites);
         }
 
+        PlayJudgeSe(judge);
         PlayImpact(judge, currentStep);
     }
 
@@ -325,6 +337,7 @@ public sealed class KissTimingGame : MonoBehaviour
 
         if (success)
         {
+            PlaySe(finalKissSuccessSeName);
             yield return PlayKissSuccessAnimation();
             bool showsExplosion = explosionSprite != null;
             explosionImage.gameObject.SetActive(showsExplosion);
@@ -432,6 +445,18 @@ public sealed class KissTimingGame : MonoBehaviour
         ShowTitle();
     }
 
+    private void OnTitleButtonClicked()
+    {
+        PlaySe(titleButtonSeName);
+        BackToTitle();
+    }
+
+    private void OnRetryButtonClicked()
+    {
+        PlaySe(retryButtonSeName);
+        RetryGame();
+    }
+
     private void SetResultButtonsVisible(bool visible)
     {
         if (resultButtonRoot != null)
@@ -457,6 +482,30 @@ public sealed class KissTimingGame : MonoBehaviour
 
         SoundManager.Instance.StopBGM();
         SoundManager.Instance.PlayBGM(bgmClip);
+    }
+
+    private void PlayJudgeSe(JudgeResult judge)
+    {
+        string seName = judge switch
+        {
+            JudgeResult.Perfect => perfectSeName,
+            JudgeResult.Good => goodSeName,
+            JudgeResult.Miss => missSeName,
+            JudgeResult.Flying => flyingSeName,
+            _ => string.Empty
+        };
+
+        PlaySe(seName);
+    }
+
+    private static void PlaySe(string seName)
+    {
+        if (string.IsNullOrWhiteSpace(seName) || SoundManager.Instance == null)
+        {
+            return;
+        }
+
+        SoundManager.Instance.PlaySE(seName);
     }
 
     private void SetCueMarkVisible(bool visible)
@@ -1313,7 +1362,7 @@ public sealed class KissTimingGame : MonoBehaviour
             titleButtonHoverSprite,
             titleButtonPressedSprite,
             uiFont);
-        titleButton.onClick.AddListener(BackToTitle);
+        titleButton.onClick.AddListener(OnTitleButtonClicked);
         Button retryButton = CreateButton(
             "RetryButton",
             resultButtonRoot,
@@ -1323,7 +1372,7 @@ public sealed class KissTimingGame : MonoBehaviour
             retryButtonHoverSprite,
             retryButtonPressedSprite,
             uiFont);
-        retryButton.onClick.AddListener(RetryGame);
+        retryButton.onClick.AddListener(OnRetryButtonClicked);
         SetResultButtonsVisible(false);
 
         speedLineImage = CreateSpeedLines();

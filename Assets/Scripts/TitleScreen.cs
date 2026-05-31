@@ -12,11 +12,14 @@ public sealed class TitleScreen : MonoBehaviour
     [SerializeField] private string inGameSceneName = "InGame";
 
     [Header("Button")]
+    [SerializeField] private Button playButton;
+    [SerializeField] private TMP_Text playButtonLabel;
     [SerializeField] private Sprite playButtonSprite;
     [SerializeField] private Sprite playButtonHoverSprite;
     [SerializeField] private Sprite playButtonPressedSprite;
     [SerializeField] private Vector2 playButtonSize = new Vector2(420f, 120f);
     [SerializeField] private Vector2 playButtonPosition = new Vector2(0f, -300f);
+    [SerializeField] private string buttonClickSeName;
 
     [Header("Text")]
     [SerializeField] private string playButtonText = "PLAY";
@@ -27,12 +30,23 @@ public sealed class TitleScreen : MonoBehaviour
     private void Awake()
     {
         EnsureEventSystem();
-        BuildUi();
+        if (playButton == null)
+        {
+            BuildUi();
+        }
+
+        ConfigurePlayButton();
     }
 
     public void Play()
     {
+        PlaySe(buttonClickSeName);
         SceneManager.LoadScene(inGameSceneName);
+    }
+
+    private void OnValidate()
+    {
+        ConfigurePlayButton();
     }
 
     private void BuildUi()
@@ -46,8 +60,52 @@ public sealed class TitleScreen : MonoBehaviour
         scaler.referenceResolution = new Vector2(1920f, 1080f);
         scaler.matchWidthOrHeight = 0.5f;
 
-        Button playButton = CreateButton("PlayButton", canvasObject.transform);
+        playButton = CreateButton("PlayButton", canvasObject.transform);
+    }
+
+    private void ConfigurePlayButton()
+    {
+        if (playButton == null)
+        {
+            return;
+        }
+
+        RectTransform rect = playButton.GetComponent<RectTransform>();
+        if (rect != null)
+        {
+            rect.sizeDelta = playButtonSize;
+            rect.anchoredPosition = playButtonPosition;
+        }
+
+        Image image = playButton.GetComponent<Image>();
+        if (image != null)
+        {
+            image.sprite = playButtonSprite;
+            image.type = playButtonSprite != null ? Image.Type.Sliced : Image.Type.Simple;
+            image.color = playButtonSprite != null ? Color.white : new Color(0.18f, 0.9f, 1f, 0.92f);
+        }
+
+        ApplyButtonSprites(playButton, playButtonSprite, playButtonHoverSprite, playButtonPressedSprite);
+        playButton.onClick.RemoveListener(Play);
         playButton.onClick.AddListener(Play);
+
+        if (playButtonLabel == null)
+        {
+            playButtonLabel = playButton.GetComponentInChildren<TMP_Text>();
+        }
+
+        if (playButtonLabel != null)
+        {
+            playButtonLabel.text = playButtonText;
+            playButtonLabel.font = playButtonFont != null ? playButtonFont : playButtonLabel.font;
+            playButtonLabel.fontSize = playButtonFontSize;
+            playButtonLabel.fontStyle = FontStyles.Bold;
+            playButtonLabel.alignment = TextAlignmentOptions.Center;
+            playButtonLabel.textWrappingMode = TextWrappingModes.NoWrap;
+            playButtonLabel.overflowMode = TextOverflowModes.Overflow;
+            playButtonLabel.color = playButtonTextColor;
+            playButtonLabel.raycastTarget = false;
+        }
     }
 
     private Button CreateButton(string name, Transform parent)
@@ -59,18 +117,27 @@ public sealed class TitleScreen : MonoBehaviour
         rect.sizeDelta = playButtonSize;
         rect.anchoredPosition = playButtonPosition;
 
-        Image image = gameObject.GetComponent<Image>();
-        image.sprite = playButtonSprite;
-        image.type = playButtonSprite != null ? Image.Type.Sliced : Image.Type.Simple;
-        image.color = playButtonSprite != null ? Color.white : new Color(0.18f, 0.9f, 1f, 0.92f);
-
         Button button = gameObject.GetComponent<Button>();
-        if (playButtonSprite != null || playButtonHoverSprite != null || playButtonPressedSprite != null)
+
+        TMP_Text label = CreateLabel(gameObject.transform);
+        label.text = playButtonText;
+        playButtonLabel = label;
+        return button;
+    }
+
+    private static void ApplyButtonSprites(Button button, Sprite normalSprite, Sprite hoverSprite, Sprite pressedSprite)
+    {
+        if (button == null)
+        {
+            return;
+        }
+
+        if (normalSprite != null || hoverSprite != null || pressedSprite != null)
         {
             SpriteState spriteState = button.spriteState;
-            spriteState.highlightedSprite = playButtonHoverSprite != null ? playButtonHoverSprite : playButtonSprite;
+            spriteState.highlightedSprite = hoverSprite != null ? hoverSprite : normalSprite;
             spriteState.selectedSprite = spriteState.highlightedSprite;
-            spriteState.pressedSprite = playButtonPressedSprite != null ? playButtonPressedSprite : spriteState.highlightedSprite;
+            spriteState.pressedSprite = pressedSprite != null ? pressedSprite : spriteState.highlightedSprite;
             button.spriteState = spriteState;
 
             ColorBlock colors = button.colors;
@@ -80,10 +147,16 @@ public sealed class TitleScreen : MonoBehaviour
             colors.selectedColor = Color.white;
             button.colors = colors;
         }
+    }
 
-        TMP_Text label = CreateLabel(gameObject.transform);
-        label.text = playButtonText;
-        return button;
+    private static void PlaySe(string seName)
+    {
+        if (string.IsNullOrWhiteSpace(seName) || SoundManager.Instance == null)
+        {
+            return;
+        }
+
+        SoundManager.Instance.PlaySE(seName);
     }
 
     private TMP_Text CreateLabel(Transform parent)
