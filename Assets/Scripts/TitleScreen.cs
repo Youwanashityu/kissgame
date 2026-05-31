@@ -6,6 +6,7 @@ using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 #pragma warning disable 0649
+[ExecuteAlways]
 public sealed class TitleScreen : MonoBehaviour
 {
     [Header("Scene")]
@@ -29,12 +30,25 @@ public sealed class TitleScreen : MonoBehaviour
 
     private void Awake()
     {
-        EnsureEventSystem();
-        if (playButton == null)
+        if (!Application.isPlaying)
         {
-            BuildUi();
+            return;
         }
 
+        EnsureEventSystem();
+        EnsurePlayButton();
+        ConfigurePlayButton();
+    }
+
+    private void OnEnable()
+    {
+        if (Application.isPlaying)
+        {
+            return;
+        }
+
+        EnsureEventSystem();
+        EnsurePlayButton();
         ConfigurePlayButton();
     }
 
@@ -47,6 +61,16 @@ public sealed class TitleScreen : MonoBehaviour
     private void OnValidate()
     {
         ConfigurePlayButton();
+    }
+
+    private void EnsurePlayButton()
+    {
+        if (playButton != null)
+        {
+            return;
+        }
+
+        BuildUi();
     }
 
     private void BuildUi()
@@ -70,13 +94,6 @@ public sealed class TitleScreen : MonoBehaviour
             return;
         }
 
-        RectTransform rect = playButton.GetComponent<RectTransform>();
-        if (rect != null)
-        {
-            rect.sizeDelta = playButtonSize;
-            rect.anchoredPosition = playButtonPosition;
-        }
-
         Image image = playButton.GetComponent<Image>();
         if (image != null)
         {
@@ -86,8 +103,11 @@ public sealed class TitleScreen : MonoBehaviour
         }
 
         ApplyButtonSprites(playButton, playButtonSprite, playButtonHoverSprite, playButtonPressedSprite);
-        playButton.onClick.RemoveListener(Play);
-        playButton.onClick.AddListener(Play);
+        if (Application.isPlaying)
+        {
+            playButton.onClick.RemoveListener(Play);
+            playButton.onClick.AddListener(Play);
+        }
 
         if (playButtonLabel == null)
         {
