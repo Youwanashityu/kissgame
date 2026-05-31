@@ -9,45 +9,27 @@ using UnityEngine.UI;
 [ExecuteAlways]
 public sealed class TitleScreen : MonoBehaviour
 {
-    [System.Serializable]
-    private sealed class CreditLinkButtonSettings
-    {
-        public string url;
-        public Sprite normalSprite;
-        public Sprite hoverSprite;
-        public Sprite pressedSprite;
-        public Vector2 size = new Vector2(260f, 82f);
-        public Vector2 position;
-    }
-
     [Header("Scene")]
     [SerializeField] private string inGameSceneName = "InGame";
 
-    [Header("Button")]
+    [Header("Play Button")]
     [SerializeField] private Button playButton;
     [SerializeField] private TMP_Text playButtonLabel;
     [SerializeField] private Sprite playButtonSprite;
     [SerializeField] private Sprite playButtonHoverSprite;
     [SerializeField] private Sprite playButtonPressedSprite;
-    [SerializeField] private Vector2 playButtonSize = new Vector2(420f, 120f);
-    [SerializeField] private Vector2 playButtonPosition = new Vector2(0f, -300f);
     [SerializeField] private string buttonClickSeName;
 
-    [Header("Credit")]
+    [Header("Credit Panel")]
     [SerializeField] private Button creditButton;
-    [SerializeField] private Sprite creditWindowSprite;
-    [SerializeField] private Vector2 creditWindowSize = new Vector2(1120f, 760f);
-    [SerializeField] private Sprite closeButtonSprite;
-    [SerializeField] private Sprite closeButtonHoverSprite;
-    [SerializeField] private Sprite closeButtonPressedSprite;
-    [SerializeField] private Vector2 closeButtonSize = new Vector2(160f, 72f);
-    [SerializeField] private Vector2 closeButtonPosition = new Vector2(480f, 320f);
-    [SerializeField] private CreditLinkButtonSettings[] creditLinkButtons =
-    {
-        new CreditLinkButtonSettings { position = new Vector2(-300f, -300f) },
-        new CreditLinkButtonSettings { position = new Vector2(0f, -300f) },
-        new CreditLinkButtonSettings { position = new Vector2(300f, -300f) }
-    };
+    [SerializeField] private GameObject creditPanel;
+    [SerializeField] private Button creditCloseButton;
+    [SerializeField] private Button creditLinkButton1;
+    [SerializeField] private string creditLinkUrl1;
+    [SerializeField] private Button creditLinkButton2;
+    [SerializeField] private string creditLinkUrl2;
+    [SerializeField] private Button creditLinkButton3;
+    [SerializeField] private string creditLinkUrl3;
 
     [Header("Maru Mask")]
     [SerializeField] private Image maruMaskImage;
@@ -59,12 +41,6 @@ public sealed class TitleScreen : MonoBehaviour
     [SerializeField] private Color playButtonTextColor = new Color(0.05f, 0.02f, 0.85f);
     [SerializeField] private int playButtonFontSize = 52;
 
-    private RectTransform creditPanelRoot;
-    private Image creditInputBlocker;
-    private Image creditWindowImage;
-    private Button closeButton;
-    private Button[] creditLinkButtonInstances;
-
     private void Awake()
     {
         if (!Application.isPlaying)
@@ -75,8 +51,9 @@ public sealed class TitleScreen : MonoBehaviour
         EnsureEventSystem();
         EnsurePlayButton();
         ConfigurePlayButton();
-        ConfigureCreditButton();
-        EnsureCreditPanel();
+        ResolveCreditReferences();
+        ConfigureCreditCallbacks();
+        SetCreditPanelVisible(false);
         EnsureMaruMask();
     }
 
@@ -90,8 +67,14 @@ public sealed class TitleScreen : MonoBehaviour
         EnsureEventSystem();
         EnsurePlayButton();
         ConfigurePlayButton();
-        EnsureCreditPanel();
+        ResolveCreditReferences();
         EnsureMaruMask();
+    }
+
+    private void OnValidate()
+    {
+        ConfigurePlayButton();
+        ConfigureMaruMask();
     }
 
     public void Play()
@@ -103,27 +86,14 @@ public sealed class TitleScreen : MonoBehaviour
     public void OpenCreditWindow()
     {
         PlaySe(buttonClickSeName);
-        EnsureCreditPanel();
-        if (creditPanelRoot != null)
-        {
-            creditPanelRoot.gameObject.SetActive(true);
-        }
+        ResolveCreditReferences();
+        SetCreditPanelVisible(true);
     }
 
     public void CloseCreditWindow()
     {
         PlaySe(buttonClickSeName);
-        if (creditPanelRoot != null)
-        {
-            creditPanelRoot.gameObject.SetActive(false);
-        }
-    }
-
-    private void OnValidate()
-    {
-        ConfigurePlayButton();
-        ConfigureCreditPanel();
-        ConfigureMaruMask();
+        SetCreditPanelVisible(false);
     }
 
     private void EnsurePlayButton()
@@ -133,11 +103,6 @@ public sealed class TitleScreen : MonoBehaviour
             return;
         }
 
-        BuildUi();
-    }
-
-    private void BuildUi()
-    {
         Canvas canvas = GetOrCreateCanvas();
         playButton = CreateButton("PlayButton", canvas.transform);
     }
@@ -202,31 +167,70 @@ public sealed class TitleScreen : MonoBehaviour
         }
     }
 
-    private void ConfigureCreditButton()
+    private void ResolveCreditReferences()
     {
-        if (creditButton == null)
+        creditButton = creditButton != null ? creditButton : FindSceneComponent<Button>("CreditButton");
+        creditPanel = creditPanel != null ? creditPanel : FindSceneGameObject("CreditPanel");
+        creditCloseButton = creditCloseButton != null ? creditCloseButton : FindSceneComponent<Button>("CreditCloseButton");
+        creditLinkButton1 = creditLinkButton1 != null ? creditLinkButton1 : FindSceneComponent<Button>("CreditLinkButton1");
+        creditLinkButton2 = creditLinkButton2 != null ? creditLinkButton2 : FindSceneComponent<Button>("CreditLinkButton2");
+        creditLinkButton3 = creditLinkButton3 != null ? creditLinkButton3 : FindSceneComponent<Button>("CreditLinkButton3");
+    }
+
+    private void ConfigureCreditCallbacks()
+    {
+        if (creditButton != null)
         {
-            GameObject creditButtonObject = GameObject.Find("CreditButton");
-            if (creditButtonObject != null)
-            {
-                creditButton = creditButtonObject.GetComponent<Button>();
-            }
+            creditButton.onClick.RemoveListener(OpenCreditWindow);
+            creditButton.onClick.AddListener(OpenCreditWindow);
         }
 
-        if (creditButton == null || !Application.isPlaying)
+        if (creditCloseButton != null)
+        {
+            creditCloseButton.onClick.RemoveListener(CloseCreditWindow);
+            creditCloseButton.onClick.AddListener(CloseCreditWindow);
+        }
+
+        ConfigureCreditLinkButton(creditLinkButton1, creditLinkUrl1);
+        ConfigureCreditLinkButton(creditLinkButton2, creditLinkUrl2);
+        ConfigureCreditLinkButton(creditLinkButton3, creditLinkUrl3);
+    }
+
+    private void ConfigureCreditLinkButton(Button button, string url)
+    {
+        if (button == null)
         {
             return;
         }
 
-        creditButton.onClick.RemoveListener(OpenCreditWindow);
-        creditButton.onClick.AddListener(OpenCreditWindow);
+        button.onClick.RemoveAllListeners();
+        button.onClick.AddListener(() => OpenCreditLink(url));
+    }
+
+    private void OpenCreditLink(string url)
+    {
+        PlaySe(buttonClickSeName);
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            return;
+        }
+
+        Application.OpenURL(url);
+    }
+
+    private void SetCreditPanelVisible(bool visible)
+    {
+        if (creditPanel != null)
+        {
+            creditPanel.SetActive(visible);
+        }
     }
 
     private void EnsureMaruMask()
     {
         if (maruMaskImage == null)
         {
-            GameObject maruObject = GameObject.Find("MaruImage");
+            GameObject maruObject = FindSceneGameObject("MaruImage");
             if (maruObject != null)
             {
                 maruMaskImage = maruObject.GetComponent<Image>();
@@ -245,8 +249,6 @@ public sealed class TitleScreen : MonoBehaviour
         }
 
         mask.showMaskGraphic = showMaruMaskImage;
-
-        ConfigureMaruMask();
     }
 
     private void ConfigureMaruMask()
@@ -261,127 +263,6 @@ public sealed class TitleScreen : MonoBehaviour
         {
             mask.showMaskGraphic = showMaruMaskImage;
         }
-
-        // Mask children are authored directly in the Unity hierarchy.
-    }
-
-    private void EnsureCreditPanel()
-    {
-        if (creditPanelRoot != null)
-        {
-            ConfigureCreditPanel();
-            return;
-        }
-
-        Canvas canvas = GetOrCreateCanvas();
-        GameObject rootObject = GameObject.Find("CreditPanel");
-        if (rootObject == null)
-        {
-            rootObject = new GameObject("CreditPanel", typeof(RectTransform));
-            rootObject.transform.SetParent(canvas.transform, false);
-        }
-
-        creditPanelRoot = rootObject.GetComponent<RectTransform>();
-        creditPanelRoot.anchorMin = new Vector2(0.5f, 0.5f);
-        creditPanelRoot.anchorMax = new Vector2(0.5f, 0.5f);
-        creditPanelRoot.pivot = new Vector2(0.5f, 0.5f);
-        creditPanelRoot.anchoredPosition = Vector2.zero;
-
-        creditInputBlocker = GetOrCreateImage("CreditInputBlocker", creditPanelRoot);
-        creditInputBlocker.color = Color.clear;
-        creditInputBlocker.raycastTarget = true;
-        Stretch(creditInputBlocker.rectTransform);
-
-        creditWindowImage = GetOrCreateImage("CreditWindowImage", creditPanelRoot);
-        SetupCenteredRect(creditWindowImage.rectTransform, creditWindowSize, Vector2.zero);
-
-        closeButton = GetOrCreateImageButton("CreditCloseButton", creditPanelRoot);
-        if (Application.isPlaying)
-        {
-            closeButton.onClick.RemoveListener(CloseCreditWindow);
-            closeButton.onClick.AddListener(CloseCreditWindow);
-        }
-
-        int linkCount = Mathf.Min(3, creditLinkButtons != null ? creditLinkButtons.Length : 0);
-        creditLinkButtonInstances = new Button[linkCount];
-        for (int i = 0; i < linkCount; i++)
-        {
-            int index = i;
-            Button linkButton = GetOrCreateImageButton("CreditLinkButton" + (i + 1), creditPanelRoot);
-            if (Application.isPlaying)
-            {
-                linkButton.onClick.RemoveAllListeners();
-                linkButton.onClick.AddListener(() => OpenCreditLink(index));
-            }
-
-            creditLinkButtonInstances[i] = linkButton;
-        }
-
-        ConfigureCreditPanel();
-        creditPanelRoot.gameObject.SetActive(false);
-    }
-
-    private void ConfigureCreditPanel()
-    {
-        if (creditPanelRoot == null)
-        {
-            return;
-        }
-
-        creditPanelRoot.SetAsLastSibling();
-
-        if (creditWindowImage != null)
-        {
-            creditWindowImage.sprite = creditWindowSprite;
-            creditWindowImage.color = creditWindowSprite != null ? Color.white : new Color(0f, 0f, 0f, 0.78f);
-            creditWindowImage.type = creditWindowSprite != null ? Image.Type.Sliced : Image.Type.Simple;
-            creditWindowImage.rectTransform.sizeDelta = creditWindowSize;
-            creditWindowImage.rectTransform.SetAsLastSibling();
-        }
-
-        ConfigureImageButton(closeButton, closeButtonSprite, closeButtonHoverSprite, closeButtonPressedSprite, closeButtonSize, closeButtonPosition);
-        if (closeButton != null)
-        {
-            closeButton.transform.SetAsLastSibling();
-        }
-
-        if (creditLinkButtonInstances == null || creditLinkButtons == null)
-        {
-            return;
-        }
-
-        int count = Mathf.Min(creditLinkButtonInstances.Length, creditLinkButtons.Length);
-        for (int i = 0; i < count; i++)
-        {
-            CreditLinkButtonSettings settings = creditLinkButtons[i];
-            if (settings == null)
-            {
-                continue;
-            }
-
-            ConfigureImageButton(
-                creditLinkButtonInstances[i],
-                settings.normalSprite,
-                settings.hoverSprite,
-                settings.pressedSprite,
-                settings.size,
-                settings.position);
-            creditLinkButtonInstances[i].transform.SetAsLastSibling();
-        }
-    }
-
-    private void OpenCreditLink(int index)
-    {
-        PlaySe(buttonClickSeName);
-        if (creditLinkButtons == null
-            || index < 0
-            || index >= creditLinkButtons.Length
-            || string.IsNullOrWhiteSpace(creditLinkButtons[index].url))
-        {
-            return;
-        }
-
-        Application.OpenURL(creditLinkButtons[index].url);
     }
 
     private Button CreateButton(string name, Transform parent)
@@ -390,8 +271,8 @@ public sealed class TitleScreen : MonoBehaviour
         gameObject.transform.SetParent(parent, false);
 
         RectTransform rect = gameObject.GetComponent<RectTransform>();
-        rect.sizeDelta = playButtonSize;
-        rect.anchoredPosition = playButtonPosition;
+        rect.sizeDelta = new Vector2(420f, 120f);
+        rect.anchoredPosition = new Vector2(0f, -300f);
 
         Button button = gameObject.GetComponent<Button>();
 
@@ -399,82 +280,6 @@ public sealed class TitleScreen : MonoBehaviour
         label.text = playButtonText;
         playButtonLabel = label;
         return button;
-    }
-
-    private static Image CreateImage(string name, Transform parent)
-    {
-        var gameObject = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
-        gameObject.transform.SetParent(parent, false);
-        return gameObject.GetComponent<Image>();
-    }
-
-    private static Image GetOrCreateImage(string name, Transform parent)
-    {
-        Transform child = parent.Find(name);
-        if (child != null && child.TryGetComponent(out Image existingImage))
-        {
-            return existingImage;
-        }
-
-        return CreateImage(name, parent);
-    }
-
-    private static Button CreateImageButton(string name, Transform parent)
-    {
-        var gameObject = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Button));
-        gameObject.transform.SetParent(parent, false);
-        return gameObject.GetComponent<Button>();
-    }
-
-    private static Button GetOrCreateImageButton(string name, Transform parent)
-    {
-        Transform child = parent.Find(name);
-        if (child != null && child.TryGetComponent(out Button existingButton))
-        {
-            return existingButton;
-        }
-
-        return CreateImageButton(name, parent);
-    }
-
-    private static void ConfigureImageButton(
-        Button button,
-        Sprite normalSprite,
-        Sprite hoverSprite,
-        Sprite pressedSprite,
-        Vector2 size,
-        Vector2 position)
-    {
-        if (button == null)
-        {
-            return;
-        }
-
-        SetupCenteredRect(button.GetComponent<RectTransform>(), size, position);
-
-        Image image = button.GetComponent<Image>();
-        image.sprite = normalSprite;
-        image.type = normalSprite != null ? Image.Type.Sliced : Image.Type.Simple;
-        image.color = normalSprite != null ? Color.white : new Color(0.18f, 0.9f, 1f, 0.92f);
-
-        ApplyButtonSprites(button, normalSprite, hoverSprite, pressedSprite);
-    }
-
-    private static void SetupCenteredRect(RectTransform rect, Vector2 size, Vector2 position)
-    {
-        rect.anchorMin = new Vector2(0.5f, 0.5f);
-        rect.anchorMax = new Vector2(0.5f, 0.5f);
-        rect.pivot = new Vector2(0.5f, 0.5f);
-        rect.sizeDelta = size;
-        rect.anchoredPosition = position;
-    }
-
-    private static void Stretch(RectTransform rect)
-    {
-        rect.anchorMin = Vector2.zero;
-        rect.anchorMax = Vector2.one;
-        rect.offsetMin = Vector2.zero;
-        rect.offsetMax = Vector2.zero;
     }
 
     private static void ApplyButtonSprites(Button button, Sprite normalSprite, Sprite hoverSprite, Sprite pressedSprite)
@@ -501,16 +306,6 @@ public sealed class TitleScreen : MonoBehaviour
         }
     }
 
-    private static void PlaySe(string seName)
-    {
-        if (string.IsNullOrWhiteSpace(seName) || SoundManager.Instance == null)
-        {
-            return;
-        }
-
-        SoundManager.Instance.PlaySE(seName);
-    }
-
     private TMP_Text CreateLabel(Transform parent)
     {
         var gameObject = new GameObject("Label", typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
@@ -532,6 +327,41 @@ public sealed class TitleScreen : MonoBehaviour
         rect.offsetMin = Vector2.zero;
         rect.offsetMax = Vector2.zero;
         return text;
+    }
+
+    private static GameObject FindSceneGameObject(string objectName)
+    {
+        Transform transform = FindSceneComponent<Transform>(objectName);
+        return transform != null ? transform.gameObject : null;
+    }
+
+    private static T FindSceneComponent<T>(string objectName) where T : Component
+    {
+        T[] components = Resources.FindObjectsOfTypeAll<T>();
+        foreach (T component in components)
+        {
+            if (component == null
+                || component.gameObject == null
+                || component.gameObject.name != objectName
+                || !component.gameObject.scene.IsValid())
+            {
+                continue;
+            }
+
+            return component;
+        }
+
+        return null;
+    }
+
+    private static void PlaySe(string seName)
+    {
+        if (string.IsNullOrWhiteSpace(seName) || SoundManager.Instance == null)
+        {
+            return;
+        }
+
+        SoundManager.Instance.PlaySE(seName);
     }
 
     private static void EnsureEventSystem()
