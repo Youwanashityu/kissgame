@@ -390,7 +390,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4336439062694548224, guid: 00ae2bf8c8a624ed38161cab9eeda7f7, type: 3}
       propertyPath: HmacKey
-      value: lRIbUulK4fAFkqaqfhAq68XXquihgjxoMVwtZPgftcLv2xFpCm7fg2SjjCCMFiZGYwS9GSYeb89oDQ/mLessHg==
+      value: Q/8eJqmQG9OW+vnv1qUZbqBdOmBDmsqf83US6ZbxBKWOc6HeK7mXfDvqRQGCAfBq8Zht+MOdbMecTkvYIZ7Luw==
       objectReference: {fileID: 0}
     - target: {fileID: 5323818951622561360, guid: 00ae2bf8c8a624ed38161cab9eeda7f7, type: 3}
       propertyPath: m_Name
@@ -489,7 +489,7 @@ MonoBehaviour:
   kissSuccessSeEvents:
   - elementIndex: 6
     seName: Explosion
-  secondJudgeOverlaySprite: {fileID: 0}
+  secondJudgeOverlaySprite: {fileID: -5827669777295958673, guid: 78a9dd3b6a391bf42a42c69e1a42ee62, type: 3}
   secondJudgeOverlaySize: {x: 1920, y: 1080}
   secondJudgeOverlayPosition: {x: 0, y: 0}
   secondJudgeOverlayPreserveAspect: 0
@@ -497,13 +497,13 @@ MonoBehaviour:
   submitScoreToUnityroom: 1
   unityroomScoreboardNo: 1
   unityroomScoreWriteMode: 0
-  tweetTextTemplate: "\u30EA\u30A2\u5145\u7206\u767A\u3057\u308D\uFF01"
-  tweetGameUrl: https://unityroom.com/users/youwanashityu
+  tweetTextTemplate: "\u6700\u5F8C\u306E\u30AD\u30B9\u306F\u7518\u3044\u5473\u3002"
+  tweetGameUrl: https://unityroom.com/games/kissicalmass
   tweetHashtags: '#KISSICALMASS #unityroom'
   postButtonSprite: {fileID: -4005234435270106859, guid: d6ccf8db27f9eb64686efda90c433607, type: 3}
   postButtonHoverSprite: {fileID: 6169879753116803640, guid: 5d7ae6bd4b40767458045d206911236b, type: 3}
   postButtonPressedSprite: {fileID: 8207237791915964684, guid: 1e0bd3cac7227f34fa8d59b46a08e26d, type: 3}
-  postButtonPosition: {x: 0, y: 360}
+  resultPostButtonPosition: {x: 410, y: 0}
   postButtonSize: {x: 320, y: 86}
   postButtonSeName: Button
   titleSceneName: Title
@@ -523,6 +523,10 @@ MonoBehaviour:
   scoreOutlineColor: {r: 0.05, g: 0.02, b: 0.85, a: 1}
   scoreOutlineWidth: 0.22
   inputPromptText: SPACE / TAP
+  startPromptText: SPACE/TAP
+  startOverlayColor: {r: 1, g: 1, b: 1, a: 0.68}
+  startPromptTextColor: {r: 0.05, g: 0.02, b: 0.85, a: 1}
+  startPromptFontSize: 86
   titleButtonSprite: {fileID: -4005234435270106859, guid: d6ccf8db27f9eb64686efda90c433607, type: 3}
   titleButtonHoverSprite: {fileID: 6169879753116803640, guid: 5d7ae6bd4b40767458045d206911236b, type: 3}
   titleButtonPressedSprite: {fileID: 8207237791915964684, guid: 1e0bd3cac7227f34fa8d59b46a08e26d, type: 3}

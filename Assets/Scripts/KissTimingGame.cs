@@ -97,7 +97,7 @@ public sealed class KissTimingGame : MonoBehaviour
     [SerializeField] private Sprite postButtonSprite;
     [SerializeField] private Sprite postButtonHoverSprite;
     [SerializeField] private Sprite postButtonPressedSprite;
-    [SerializeField] private Vector2 postButtonPosition = new Vector2(0f, 360f);
+    [SerializeField] private Vector2 resultPostButtonPosition = new Vector2(410f, 0f);
     [SerializeField] private Vector2 postButtonSize = new Vector2(320f, 86f);
     [SerializeField] private string postButtonSeName;
 
@@ -123,6 +123,10 @@ public sealed class KissTimingGame : MonoBehaviour
     [SerializeField] private Color scoreOutlineColor = new Color(0.05f, 0.02f, 0.85f);
     [SerializeField, Range(0f, 0.5f)] private float scoreOutlineWidth = 0.22f;
     [SerializeField] private string inputPromptText = "SPACE / CLICK";
+    [SerializeField] private string startPromptText = "SPACE/TAP";
+    [SerializeField] private Color startOverlayColor = new Color(1f, 1f, 1f, 0.68f);
+    [SerializeField] private Color startPromptTextColor = new Color(0.05f, 0.02f, 0.85f);
+    [SerializeField] private float startPromptFontSize = 86f;
     [SerializeField] private Sprite titleButtonSprite;
     [SerializeField] private Sprite titleButtonHoverSprite;
     [SerializeField] private Sprite titleButtonPressedSprite;
@@ -147,6 +151,8 @@ public sealed class KissTimingGame : MonoBehaviour
     private TMP_Text scoreText;
     private TMP_Text breakdownText;
     private TMP_Text promptText;
+    private Image startOverlayImage;
+    private TMP_Text startPromptLabel;
     private TMP_Text leftFace;
     private TMP_Text rightFace;
     private RectTransform resultButtonRoot;
@@ -225,6 +231,7 @@ public sealed class KissTimingGame : MonoBehaviour
     {
         running = true;
         showingResult = false;
+        SetStartOverlayVisible(false);
         RestartSceneBgm();
         results.Clear();
         ResetEffects();
@@ -471,7 +478,8 @@ public sealed class KissTimingGame : MonoBehaviour
         scoreText.text = "";
         breakdownText.text = "";
         titleText.text = "";
-        promptText.text = inputPromptText;
+        promptText.text = "";
+        SetStartOverlayVisible(true);
         SetIdleFace();
     }
 
@@ -489,6 +497,7 @@ public sealed class KissTimingGame : MonoBehaviour
         promptText.text = "";
         SetResultFace();
         SetResultButtonsVisible(true);
+        SetStartOverlayVisible(false);
         PlaySe(resultScoreTickSeName);
         scoreRoutine = StartCoroutine(CountUpScore(score));
         floatingScoreRoutine = StartCoroutine(SpawnScoreTexts(score));
@@ -624,6 +633,25 @@ public sealed class KissTimingGame : MonoBehaviour
         secondJudgeOverlayImage.preserveAspect = secondJudgeOverlayPreserveAspect;
         secondJudgeOverlayImage.rectTransform.sizeDelta = secondJudgeOverlaySize;
         secondJudgeOverlayImage.rectTransform.anchoredPosition = secondJudgeOverlayPosition;
+    }
+
+    private void SetStartOverlayVisible(bool visible)
+    {
+        if (startOverlayImage != null)
+        {
+            startOverlayImage.gameObject.SetActive(visible);
+            startOverlayImage.color = startOverlayColor;
+        }
+
+        if (startPromptLabel != null)
+        {
+            startPromptLabel.gameObject.SetActive(visible);
+            startPromptLabel.text = string.IsNullOrWhiteSpace(startPromptText)
+                ? inputPromptText
+                : startPromptText;
+            startPromptLabel.color = startPromptTextColor;
+            startPromptLabel.fontSize = Mathf.Max(1f, startPromptFontSize);
+        }
     }
 
     private string BuildResultBreakdown()
@@ -1660,23 +1688,23 @@ public sealed class KissTimingGame : MonoBehaviour
         ApplySprite(cueMarkImage, cueMarkSprite, true);
         cueMarkImage.gameObject.SetActive(false);
 
-        judgeText = CreateText("JudgeText", uiRoot, "", 78, FontStyles.Bold, TextAlignmentOptions.Center);
+        judgeText = CreateText("JudgeText", uiRoot, "", 100, FontStyles.Bold, TextAlignmentOptions.Center);
         ApplyFont(judgeText, uiFont);
         ApplyBlueResultTextStyle(judgeText);
-        judgeText.rectTransform.anchoredPosition = new Vector2(0f, -295f);
-        judgeText.rectTransform.sizeDelta = new Vector2(1100f, 120f);
+        judgeText.rectTransform.anchoredPosition = new Vector2(0f, -185f);
+        judgeText.rectTransform.sizeDelta = new Vector2(1400f, 150f);
 
-        scoreText = CreateText("ScoreText", uiRoot, "", 86, FontStyles.Bold, TextAlignmentOptions.Center);
+        scoreText = CreateText("ScoreText", uiRoot, "", 112, FontStyles.Bold, TextAlignmentOptions.Center);
         ApplyFont(scoreText, scoreFont != null ? scoreFont : uiFont);
         ApplyScoreTextStyle(scoreText);
-        scoreText.rectTransform.anchoredPosition = new Vector2(0f, 35f);
-        scoreText.rectTransform.sizeDelta = new Vector2(1300f, 140f);
+        scoreText.rectTransform.anchoredPosition = new Vector2(0f, 200f);
+        scoreText.rectTransform.sizeDelta = new Vector2(1780f, 180f);
 
-        breakdownText = CreateText("BreakdownText", uiRoot, "", 32, FontStyles.Bold, TextAlignmentOptions.Center);
+        breakdownText = CreateText("BreakdownText", uiRoot, "", 43, FontStyles.Bold, TextAlignmentOptions.Center);
         ApplyFont(breakdownText, uiFont);
         ApplyBlueResultTextStyle(breakdownText);
-        breakdownText.rectTransform.anchoredPosition = new Vector2(0f, -112f);
-        breakdownText.rectTransform.sizeDelta = new Vector2(1200f, 220f);
+        breakdownText.rectTransform.anchoredPosition = new Vector2(0f, -10f);
+        breakdownText.rectTransform.sizeDelta = new Vector2(1500f, 220f);
 
         promptText = CreateText("PromptText", uiRoot, "", 44, FontStyles.Bold, TextAlignmentOptions.Center);
         ApplyFont(promptText, uiFont);
@@ -1685,10 +1713,58 @@ public sealed class KissTimingGame : MonoBehaviour
         promptText.rectTransform.anchoredPosition = new Vector2(0f, 82f);
         promptText.rectTransform.sizeDelta = new Vector2(650f, 90f);
 
-        postButtonRoot = CreateRect("PostButtonRoot", uiRoot);
+        startOverlayImage = CreateImage("StartOverlay", uiRoot, startOverlayColor);
+        Stretch(startOverlayImage.rectTransform);
+        startOverlayImage.raycastTarget = false;
+        startOverlayImage.gameObject.SetActive(false);
+
+        startPromptLabel = CreateText(
+            "StartPromptText",
+            uiRoot,
+            startPromptText,
+            Mathf.RoundToInt(Mathf.Max(1f, startPromptFontSize)),
+            FontStyles.Bold,
+            TextAlignmentOptions.Center);
+        ApplyFont(startPromptLabel, uiFont);
+        startPromptLabel.color = startPromptTextColor;
+        startPromptLabel.rectTransform.anchorMin = new Vector2(0.5f, 0.5f);
+        startPromptLabel.rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
+        startPromptLabel.rectTransform.pivot = new Vector2(0.5f, 0.5f);
+        startPromptLabel.rectTransform.anchoredPosition = Vector2.zero;
+        startPromptLabel.rectTransform.sizeDelta = new Vector2(850f, 150f);
+        startPromptLabel.gameObject.SetActive(false);
+
+        resultButtonRoot = CreateRect("ResultButtons", uiRoot);
+        resultButtonRoot.anchorMin = new Vector2(0.5f, 0f);
+        resultButtonRoot.anchorMax = new Vector2(0.5f, 0f);
+        resultButtonRoot.anchoredPosition = new Vector2(0f, 178f);
+        resultButtonRoot.sizeDelta = new Vector2(1180f, 96f);
+
+        Button titleButton = CreateButton(
+            "TitleButton",
+            resultButtonRoot,
+            "TITLE",
+            new Vector2(-410f, 0f),
+            titleButtonSprite,
+            titleButtonHoverSprite,
+            titleButtonPressedSprite,
+            uiFont);
+        titleButton.onClick.AddListener(OnTitleButtonClicked);
+        Button retryButton = CreateButton(
+            "RetryButton",
+            resultButtonRoot,
+            "RETRY",
+            Vector2.zero,
+            retryButtonSprite,
+            retryButtonHoverSprite,
+            retryButtonPressedSprite,
+            uiFont);
+        retryButton.onClick.AddListener(OnRetryButtonClicked);
+
+        postButtonRoot = CreateRect("PostButtonRoot", resultButtonRoot);
         postButtonRoot.anchorMin = new Vector2(0.5f, 0.5f);
         postButtonRoot.anchorMax = new Vector2(0.5f, 0.5f);
-        postButtonRoot.anchoredPosition = postButtonPosition;
+        postButtonRoot.anchoredPosition = resultPostButtonPosition;
         postButtonRoot.sizeDelta = postButtonSize;
         postButton = CreateButton(
             "PostButton",
@@ -1701,33 +1777,6 @@ public sealed class KissTimingGame : MonoBehaviour
             uiFont);
         postButton.GetComponent<RectTransform>().sizeDelta = postButtonSize;
         postButton.onClick.AddListener(OnPostButtonClicked);
-
-        resultButtonRoot = CreateRect("ResultButtons", uiRoot);
-        resultButtonRoot.anchorMin = new Vector2(0.5f, 0f);
-        resultButtonRoot.anchorMax = new Vector2(0.5f, 0f);
-        resultButtonRoot.anchoredPosition = new Vector2(0f, 96f);
-        resultButtonRoot.sizeDelta = new Vector2(760f, 96f);
-
-        Button titleButton = CreateButton(
-            "TitleButton",
-            resultButtonRoot,
-            "TITLE",
-            new Vector2(-205f, 0f),
-            titleButtonSprite,
-            titleButtonHoverSprite,
-            titleButtonPressedSprite,
-            uiFont);
-        titleButton.onClick.AddListener(OnTitleButtonClicked);
-        Button retryButton = CreateButton(
-            "RetryButton",
-            resultButtonRoot,
-            "RETRY",
-            new Vector2(205f, 0f),
-            retryButtonSprite,
-            retryButtonHoverSprite,
-            retryButtonPressedSprite,
-            uiFont);
-        retryButton.onClick.AddListener(OnRetryButtonClicked);
         SetResultButtonsVisible(false);
 
         speedLineImage = CreateSpeedLines();
